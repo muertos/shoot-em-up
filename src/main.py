@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from objects import *
+import copy
 
 # Constants
 SCREEN_WIDTH = 626
@@ -10,8 +11,8 @@ PLAYER_HEIGHT = 8
 PLAYER_WIDTH = 85
 PLAYER_SPEED = 5
 BULLET_SPEED = -8
-BRICK_HEIGHT = 11
-BRICK_WIDTH = 49
+BRICK_HEIGHT = 24
+BRICK_WIDTH = 24
 GAME_TITLE = "Shoot 'em up"
 
 # define testing level
@@ -33,12 +34,31 @@ level = [
   [0,0,1,0,1,0,1,0,1,0,1,0],
   [0,0,0,1,1,1,1,1,1,1,0,0]]
 
+_level = [
+  [0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,1,0,0,0,1,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,1,0,0,0,1,0,0,0,1,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,1,0,1,0,1,0,1,0,1,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,1,0,1,0,1,0,1,0,1,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,1,0,0,0,1,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,1,0,1,0,1,0,1,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,1,0,0,1,0,1,0,0,1,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0]]
+
+
 def make_level(level, sprites, bricks):
   """ given a matrix, make a level, starting at (0,0) """  
   for i in range(len(level)):
     for j in range(len(level[i])):
       if level[i][j] == 1:
-        brick = Brick(BRICK_WIDTH * j, BRICK_HEIGHT * i, sprites)
+        brick = Brick((BRICK_WIDTH * j) + 3, (BRICK_HEIGHT * i) + 3, sprites)
         sprites.add(brick)
         bricks.append(brick)
 
@@ -58,38 +78,56 @@ def main():
   bullets = []
   bricks = []
   make_level(level, sprites, bricks)
+  next_bullet_time = 0
 
   while True:
     clock.tick(120)
     screen.blit(background, (0,0))
 
-    # event handler
-    for e in pygame.event.get():
-      if e.type == KEYDOWN:
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_SPACE]:
-          bullet = Bullet(player.rect.x, player.rect.y, sprites)
-          bullets.append(bullet)
-      if e.type == QUIT:
-        return
-
     keys = pygame.key.get_pressed()
+    time_now = pygame.time.get_ticks()
     if keys[pygame.K_LEFT]:
       player.move(-PLAYER_SPEED)
     if keys[pygame.K_RIGHT]:
       player.move(PLAYER_SPEED)
     if keys[pygame.K_END]:
       sys.exit(0)
+    if keys[pygame.K_SPACE] and time_now > next_bullet_time:
+      bullet = Bullet(player.rect.x, player.rect.y, sprites)
+      # introduce delay between bullets
+      next_bullet_time = bullet.delay + time_now
+      bullets.append(bullet)
     
-    for bullet in bullets:
+    # event handler
+    for e in pygame.event.get():
+      if e.type == QUIT:
+        return
+
+    # move bullets
+    for bullet in bullets.copy():
       bullet.move(BULLET_SPEED)
-      if bullet.rect.y < 0:
-        bullets.remove(bullet)
-        sprites.remove(bullet)
-      for brick in bricks:
+      for brick in bricks.copy():
         if bullet.rect.colliderect(brick.rect):
-          sprites.remove(bullet)
-          sprites.remove(brick)
+          bullet.kill()
+          brick.kill()
+          bullets.remove(bullet)
+          bricks.remove(brick)
+          if not bricks:
+            print("you win")
+            return
+          break
+      if bullet.rect.y < 0:
+          bullet.kill()
+          bullets.remove(bullet)
+
+    # brick movement / collision detection  
+    #for brick in bricks.copy():
+    #  brick.move_random()
+    #  for brick2 in bricks[::-1]:
+    #    if brick.rect.colliderect(brick2.rect):
+    #      brick2.reverse_direction()
+    #      break
+
 
     screen.fill((0,0,0))
     sprites.draw(screen)
