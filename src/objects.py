@@ -51,7 +51,7 @@ class Enemy(pygame.sprite.Sprite):
     self.y_dir = 0
     self.speed = 1
     self.move_count = 0
-    self.shooting = False
+    self.shooting = True
     self.next_bullet_time = 0
 
   def move_back_and_forth(self):

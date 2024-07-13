@@ -119,15 +119,10 @@ def main():
 
     # create enemy bullets
     for enemy in enemies:
-      if random.randrange(0,16) == 4:
-        print("shooting time")
-        enemy.shooting = True
       if enemy.shooting and time_now > enemy.next_bullet_time:
         enemy_bullet = EnemyBullet(enemy.rect.x + enemy.image.get_width() / 2 - enemy_bullet_img.get_width() / 2, enemy.rect.y + enemy_bullet_img.get_height(), sprites)
         enemy_bullets.append(enemy_bullet)
         enemy.next_bullet_time = time_now + enemy_bullet.delay
-        enemy.shooting = False
-      enemy.shooting = False
 
     # move enemy bullets
     for bullet in enemy_bullets:
