@@ -19,9 +19,10 @@ class Player(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
     # adds Player sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('paddle.png')
+    self.image, self.rect = load_png('ship.png')
     self.rect.x = x
     self.rect.y = y
+    self.speed = 5
 
   def move(self, direction):
     self.rect.x += direction
@@ -30,25 +31,28 @@ class Bullet(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
     # adds Bullet sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('ball.png')
+    self.image, self.rect = load_png('bullet.png')
     self.rect.x = x
     self.rect.y = y
     self.delay = 30
+    self.speed = -8
 
   def move(self, direction):
     self.rect.y += direction
 
-class Brick(pygame.sprite.Sprite):
+class Enemy(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
-    # adds Brick sprite to sprite_group
+    # adds Enemy sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('diamond.png')
+    self.image, self.rect = load_png('enemy_ship.png')
     self.rect.x = x
     self.rect.y = y
     self.x_dir = 0
     self.y_dir = 0
     self.speed = 1
     self.move_count = 0
+    self.shooting = False
+    self.next_bullet_time = 0
 
   def move_back_and_forth(self):
     self.rect.x += self.speed
@@ -57,12 +61,12 @@ class Brick(pygame.sprite.Sprite):
       self.speed = -self.speed
       self.move_count = 0
 
-  def move(self, x_dir, y_dir):
-    self.rect.x += x_dir
-    self.rect.y += y_dir
+  def move(self):
+    self.rect.x += self.x_dir
+    self.rect.y += self.y_dir
 
   def set_move_direction(self):
-    choice = random.randrange(0,6)
+    choice = random.randrange(0,2)
     if choice == 0:
       self.x_dir = 1
       self.y_dir = 0
@@ -83,8 +87,7 @@ class Brick(pygame.sprite.Sprite):
       self.y_dir = -1
 
   def move_random(self):
-    self.rect.x += self.x_dir
-    self.rect.y += self.y_dir
+    self.move()
     self.move_count += 1
     if self.move_count > 12:
       self.set_move_direction()
@@ -94,9 +97,16 @@ class Brick(pygame.sprite.Sprite):
     self.x_dir = -self.x_dir
     self.y_dir = -self.y_dir
 
-  def temp_stop(self):
-    pass
-    
+class EnemyBullet(pygame.sprite.Sprite):
+  def __init__(self, x, y, sprite_group) -> None:
+    # adds Enemy bullet sprite to sprite_group
+    pygame.sprite.Sprite.__init__(self, sprite_group)
+    self.image, self.rect = load_png('enemy_bullet.png')
+    self.rect.x = x
+    self.rect.y = y
+    self.speed = 4
+    self.delay = 200
 
-
+  def move(self, direction):
+    self.rect.y += direction
 
