@@ -36,7 +36,7 @@ class Bullet(pygame.sprite.Sprite):
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.x = x
     self.rect.y = y
-    self.delay = 30
+    self.delay = 120
     self.speed = -8
 
   def move(self, direction):
