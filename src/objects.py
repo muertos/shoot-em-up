@@ -17,9 +17,9 @@ def load_png(name):
 
 class Player(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
-    # adds Player sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
     self.image, self.rect = load_png('ship.png')
+    self.mask = pygame.mask.from_surface(self.image)
     self.rect.x = x
     self.rect.y = y
     self.speed = 5
@@ -32,6 +32,8 @@ class Bullet(pygame.sprite.Sprite):
     # adds Bullet sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
     self.image, self.rect = load_png('bullet.png')
+    # create masks, for pixel perfect collision detection
+    self.mask = pygame.mask.from_surface(self.image)
     self.rect.x = x
     self.rect.y = y
     self.delay = 30
@@ -45,6 +47,7 @@ class Enemy(pygame.sprite.Sprite):
     # adds Enemy sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
     self.image, self.rect = load_png('enemy_ship.png')
+    self.mask = pygame.mask.from_surface(self.image)
     self.rect.x = x
     self.rect.y = y
     self.x_dir = 0
@@ -66,7 +69,7 @@ class Enemy(pygame.sprite.Sprite):
     self.rect.y += self.y_dir
 
   def set_move_direction(self):
-    choice = random.randrange(0,2)
+    choice = random.randrange(0,8)
     if choice == 0:
       self.x_dir = 1
       self.y_dir = 0
@@ -84,6 +87,12 @@ class Enemy(pygame.sprite.Sprite):
       self.y_dir = 1
     if choice == 5:
       self.x_dir = -1
+      self.y_dir = -1
+    if choice == 6:
+      self.x_dir = -1
+      self.y_dir = 1
+    if choice == 7:
+      self.x_dir = 1
       self.y_dir = -1
 
   def move_random(self):
@@ -104,8 +113,8 @@ class EnemyBullet(pygame.sprite.Sprite):
     self.image, self.rect = load_png('enemy_bullet.png')
     self.rect.x = x
     self.rect.y = y
-    self.speed = 4
-    self.delay = 200
+    self.speed = 2
+    self.delay = random.randrange(1,1500)
 
   def move(self, direction):
     self.rect.y += direction

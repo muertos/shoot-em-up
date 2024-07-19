@@ -11,16 +11,12 @@ GAME_TITLE = "Shoot 'em up"
 
 # define testing level
 level = [
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,1,1,0,1,1,0,0,0],
-  [0,0,0,1,1,1,1,1,1,1,0,0],
-  [0,0,1,1,0,1,1,1,0,1,1,0],
-  [0,0,1,1,1,1,1,1,1,1,1,0],
-  [0,0,1,0,1,0,1,0,1,0,1,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0]]
+  [0,0,0,0,1,0,0,0,1,0,0,0],
+  [1,0,0,0,0,0,1,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,1],
+  [0,1,0,0,0,0,0,0,0,0,1,0]]
   
-def make_level(level, sprites, enemies):
+def make_level(level, sprites):
   # initialize width / height
   img = pygame.image.load('data/enemy_ship.png')
   """ given a matrix, make a level, starting at (0,0) """  
@@ -29,7 +25,6 @@ def make_level(level, sprites, enemies):
       if level[i][j] == 1:
         enemy = Enemy(((img.get_width() + 12) * j), ((img.get_height() + 12)* i), sprites)
         sprites.add(enemy)
-        enemies.append(enemy)
 
 def main():
   pygame.init()
@@ -42,18 +37,19 @@ def main():
   screen.fill(BG_COLOR)
   pygame.display.set_caption(GAME_TITLE)
   clock = pygame.time.Clock()
-  sprites = pygame.sprite.Group()
+  bullet_group = pygame.sprite.Group()
+  enemy_group = pygame.sprite.Group()
+  enemy_bullet_group = pygame.sprite.Group()
+  player_group = pygame.sprite.Group()
   # load placeholder player image
   player_img = pygame.image.load('data/ship.png')
-  player = Player((SCREEN_WIDTH / 2) - (player_img.get_width() / 2), SCREEN_HEIGHT - player_img.get_height(), sprites)
+  player = Player((SCREEN_WIDTH / 2) - (player_img.get_width() / 2), SCREEN_HEIGHT - player_img.get_height(), player_group)
+
   # load placeholder bullet images
   bullet_img = pygame.image.load('data/bullet.png')
   enemy_bullet_img = pygame.image.load('data/enemy_bullet.png')
-  bullets = []
-  enemies = []
-  enemy_bullets = []
-  make_level(level, sprites, enemies)
   next_bullet_time = 0
+  make_level(level, enemy_group)
 
   while True:
     clock.tick(120)
@@ -73,42 +69,35 @@ def main():
     if keys[pygame.K_END]:
       sys.exit(0)
     if keys[pygame.K_SPACE] and time_now > next_bullet_time:
-      bullet = Bullet(player.rect.x + (player_img.get_width() / 2) - (bullet_img.get_width() / 2), player.rect.y, sprites)
+      bullet = Bullet(player.rect.x + (player_img.get_width() / 2) - (bullet_img.get_width() / 2), player.rect.y, bullet_group)
       # introduce delay between bullets
       next_bullet_time = bullet.delay + time_now
-      bullets.append(bullet)
     
     # event handler
     for e in pygame.event.get():
       if e.type == QUIT:
         return
 
-    # move bullets
-    for bullet in bullets.copy():
+    # move bullets / bullet collision detection
+    for bullet in bullet_group.sprites():
       bullet.move(bullet.speed)
-      for enemy in enemies.copy():
-        if bullet.rect.colliderect(enemy.rect):
-          bullet.kill()
-          enemy.kill()
-          bullets.remove(bullet)
-          enemies.remove(enemy)
-          if not enemies:
-            print("you win")
-            return
-          break
+      collisions = pygame.sprite.spritecollide(bullet, enemy_group, True, collided=pygame.sprite.collide_mask)
+      for enemy in collisions:
+        bullet_group.remove(bullet)
+        if not enemy_group:
+          print("winner!")
+          sys.exit(0)
       if bullet.rect.y < 0:
-          bullet.kill()
-          bullets.remove(bullet)
+          bullet_group.remove(bullet)
 
     # enemy movement / collision detection  
-    enemies_copy = enemies.copy()
-    for enemy in enemies_copy:
-      # remove iterating enemy because it would always collide with itself
-      enemies_copy.remove(enemy)
+    for enemy in enemy_group.sprites():
       prev_x = enemy.rect.x
       prev_y = enemy.rect.y
       enemy.move_random()
-      if enemy.rect.collidelist(enemies_copy) != -1:
+      collisions = pygame.sprite.spritecollide(enemy, enemy_group, False, collided=pygame.sprite.collide_mask)
+      collisions.remove(enemy)
+      if collisions:
         enemy.rect.x = prev_x
         enemy.rect.y = prev_y
       # check if enemies are out of bounds  
@@ -116,21 +105,33 @@ def main():
         enemy.rect.x = prev_x
       if enemy.rect.x < 0:
         enemy.rect.x = prev_x
+      if enemy.rect.y + enemy.image.get_height() > screen.get_height():
+        enemy.rect.y = prev_y
+      if enemy.rect.y < 0:
+        enemy.rect.y = prev_y
 
     # create enemy bullets
-    for enemy in enemies:
+    for enemy in enemy_group.sprites():
       if enemy.shooting and time_now > enemy.next_bullet_time:
-        enemy_bullet = EnemyBullet(enemy.rect.x + enemy.image.get_width() / 2 - enemy_bullet_img.get_width() / 2, enemy.rect.y + enemy_bullet_img.get_height(), sprites)
-        enemy_bullets.append(enemy_bullet)
+        enemy_bullet = EnemyBullet(enemy.rect.x + enemy.image.get_width() / 2 - enemy_bullet_img.get_width() / 2, enemy.rect.y + enemy_bullet_img.get_height(), enemy_bullet_group)
+        enemy_bullet_group.add(enemy_bullet)
         enemy.next_bullet_time = time_now + enemy_bullet.delay
 
     # move enemy bullets
-    for bullet in enemy_bullets:
+    for bullet in enemy_bullet_group.sprites():
       bullet.move(bullet.speed)
-
+      collisions = pygame.sprite.spritecollide(bullet, player_group, False, collided=pygame.sprite.collide_mask)
+      if collisions:
+        print("loser!")
+        sys.exit(0)
 
     screen.fill((0,0,0))
-    sprites.draw(screen)
+
+    bullet_group.draw(screen)
+    enemy_group.draw(screen)
+    enemy_bullet_group.draw(screen)
+    player_group.draw(screen)
+
     pygame.display.flip()
 
 if __name__ == "__main__":
