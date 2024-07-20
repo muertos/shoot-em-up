@@ -69,6 +69,21 @@ def main():
   player = create_player(player_group)
   make_level(level, enemy_group)
 
+  # load introduction
+  while True:
+    screen.blit(background, (0,0))
+    screen.blit(draw_text("arrow keys to move, space to shoot, press enter to play"), (150, SCREEN_HEIGHT / 2 - 30))
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_RETURN]:
+      break
+    if keys[pygame.K_END] or keys[pygame.K_ESCAPE]:
+      sys.exit(0)
+    # need event handler for this loop to function
+    for e in pygame.event.get():
+      if e.type == QUIT:
+        return
+    pygame.display.flip()
+
   clock = pygame.time.Clock()
   while True:
     clock.tick(120)
