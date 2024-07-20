@@ -1,7 +1,7 @@
 # Running on Windows
 - Download release
 - Extract archive
-- Execute `dist/main.exe`
+- Execute `main.exe`
 
 # Running on Linux
 - Create python virtual environment
