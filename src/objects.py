@@ -23,6 +23,8 @@ class Player(pygame.sprite.Sprite):
     self.rect.x = x
     self.rect.y = y
     self.speed = 5
+    # used as part of bullet delay calculation
+    self.next_bullet_time = 0
 
   def move(self, direction):
     self.rect.x += direction
@@ -36,7 +38,7 @@ class Bullet(pygame.sprite.Sprite):
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.x = x
     self.rect.y = y
-    self.delay = 120
+    self.delay = 50
     self.speed = -8
 
   def move(self, direction):
