@@ -7,3 +7,5 @@
 - Create python virtual environment
 - Install requirements.txt
 - Execute `src/main.py`
+
+[example gameplay](img/demo.png)
