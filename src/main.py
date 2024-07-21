@@ -234,9 +234,7 @@ def main():
     player_group.draw(screen)
     
     pygame.time.delay(delay)
-
-    #pygame.display.flip()
-    pygame.display.update()
+    pygame.display.flip()
 
 if __name__ == "__main__":
   main()
