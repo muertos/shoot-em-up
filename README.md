@@ -8,4 +8,4 @@
 - Install requirements.txt
 - Execute `src/main.py`
 
-[example gameplay](img/demo.png)
+![example gameplay](img/demo.png)
