@@ -6,16 +6,48 @@ import copy
 # Constants
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-BG_COLOR = (0,0,0)
+BG_COLOR = 10, 10, 20
 GAME_TITLE = "Shoot 'em up"
+# top layer
+STAR_LAYER_1 = 200
+# middle
+STAR_LAYER_2 = 400
+# bottom
+STAR_LAYER_3 = 800
+NUM_STARS = STAR_LAYER_1 + STAR_LAYER_2 + STAR_LAYER_3
+WHITE = 255, 255, 255
+LIGHTBLUE = 200, 200, 255
+#LIGHTGRAY = 180, 180, 180
+LIGHTRED = 255, 200, 200 
+#DARKGRAY = 120, 120, 120
+LIGHTYELLOW = 255, 200, 255 
+DOWN = 1
 
 # define testing level
 level = [
-  [0,0,0,0,1,0,0,0,1,0,0,0],
-  [1,0,0,0,0,0,1,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,1],
-  [0,1,0,0,0,0,0,0,0,0,1,0]]
-  
+  [0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+  [1,0,0,0,0,0,1,0,0,0,0,1,0,0,1,0],
+  [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+  [0,1,0,0,0,0,0,0,0,0,1,0,1,0,1,0]]
+
+def init_stars(screen):
+  stars = []
+  for loop in range(0, NUM_STARS):
+    star = [random.randrange(0, screen.get_width() - 1),
+            random.randrange(0, screen.get_height() - 1)]
+    stars.append(star);
+  return stars
+
+def move_stars(screen, stars, start, end, direction):
+  for loop in range(start, end):
+    if (direction == DOWN):
+      if (stars[loop][1] != screen.get_height() - 1):
+          stars[loop][1] = stars[loop][1] + 1
+      else:
+        stars[loop][0] = random.randrange(0, screen.get_width() - 1)
+        stars[loop][1] = 1
+  return stars
+ 
 def make_level(level, sprites):
   # initialize width / height
   img = pygame.image.load('data/enemy_ship.png')
@@ -31,7 +63,7 @@ def draw_text(text, color=(0,200,0)):
   return font.render(text, False, color)
 
 def create_game_window():
-  screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+  screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), DOUBLEBUF)
   background = pygame.Surface(screen.get_size())
   background = background.convert()
   background.fill(BG_COLOR)
@@ -57,6 +89,16 @@ def main():
   # initialize pygame and game screen
   pygame.init()
   screen, background = create_game_window()
+
+  # stars
+  random.seed()
+  delay = 8
+  inc = 2
+  direction = DOWN
+  stars = init_stars(screen)
+  # Place layer 1 stars 
+  for loop in range(0, STAR_LAYER_1):
+    screen.set_at(stars[loop], WHITE)
 
   # sprite groups
   bullet_group = pygame.sprite.Group()
@@ -85,10 +127,15 @@ def main():
     pygame.display.flip()
 
   clock = pygame.time.Clock()
+  screen.blit(background, (0,0))
   while True:
-    clock.tick(120)
-    screen.blit(background, (0,0))
+    #clock.tick(120)
+    inc += 1
 
+    # event handler
+    for e in pygame.event.get():
+      if e.type == QUIT:
+        return
     keys = pygame.key.get_pressed()
     time_now = pygame.time.get_ticks()
     prev_x = player.rect.x
@@ -107,11 +154,9 @@ def main():
         player.next_bullet_time = bullet.delay + time_now
     if keys[pygame.K_END] or keys[pygame.K_ESCAPE]:
       sys.exit(0)
-    
-    # event handler
-    for e in pygame.event.get():
-      if e.type == QUIT:
-        return
+    # make things faster
+    if keys[pygame.K_UP]:
+      delay -= 1
 
     # move bullets / bullet collision detection
     for bullet in bullet_group.sprites():
@@ -159,8 +204,26 @@ def main():
         lose = True
 
     # we draw things after screen.fill, otherwise they don't display!
-    screen.fill((0,0,0))
-    
+    screen.fill(BG_COLOR)
+
+    # Check if stars hit the screen border
+    stars = move_stars(screen, stars, 0, STAR_LAYER_1, direction)
+    if (inc % 2 == 0):
+      stars = move_stars(screen, stars, STAR_LAYER_1 + 1, STAR_LAYER_1 + STAR_LAYER_2, direction)
+    if (inc % 5 == 0):
+      stars = move_stars(screen, stars, STAR_LAYER_1 + STAR_LAYER_2 + 1, NUM_STARS, direction)
+
+    # Place star layers
+    for loop in range(0, STAR_LAYER_1):
+      screen.set_at(stars[loop], LIGHTBLUE)
+    for loop in range(STAR_LAYER_1 + 1, STAR_LAYER_1 + STAR_LAYER_2):
+      screen.set_at(stars[loop], LIGHTRED)
+    for loop in range(STAR_LAYER_1 + STAR_LAYER_2 + 1, NUM_STARS):
+      screen.set_at(stars[loop], LIGHTYELLOW)
+
+    if inc == 500:
+      inc = 2
+
     if win:
       screen.blit(draw_text("you're a winner! :)"), (SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 30))
     if lose:
@@ -169,8 +232,11 @@ def main():
     enemy_group.draw(screen)
     enemy_bullet_group.draw(screen)
     player_group.draw(screen)
+    
+    pygame.time.delay(delay)
 
-    pygame.display.flip()
+    #pygame.display.flip()
+    pygame.display.update()
 
 if __name__ == "__main__":
   main()
