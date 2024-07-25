@@ -25,6 +25,7 @@ class Player(pygame.sprite.Sprite):
     self.speed = 5
     # used as part of bullet delay calculation
     self.next_bullet_time = 0
+    self.hp = 5
 
   def move(self, direction):
     self.rect.x += direction
@@ -58,6 +59,7 @@ class Enemy(pygame.sprite.Sprite):
     self.move_count = 0
     self.shooting = True
     self.next_bullet_time = 0
+    self.hp = 3
 
   def move_back_and_forth(self):
     self.rect.x += self.speed
@@ -115,9 +117,25 @@ class EnemyBullet(pygame.sprite.Sprite):
     self.image, self.rect = load_png('enemy_bullet.png')
     self.rect.x = x
     self.rect.y = y
-    self.speed = 2
-    self.delay = random.randrange(1,1500)
+    self.speed = 1.5
+    self.delay = random.randrange(2500,3500)
 
   def move(self, direction):
     self.rect.y += direction
 
+class Asteroid(pygame.sprite.Sprite):
+  def __init__(self, x, y, sprite_group) -> None:
+    pygame.sprite.Sprite.__init__(self, sprite_group)
+    self.image, self.rect = load_png('asteroid.png')
+    self.mask = pygame.mask.from_surface(self.image)
+    self.rect.x = x
+    self.rect.y = y
+    self.speed = 1
+
+  def move(self):
+    self.rect.y += self.speed
+
+  def rotate(self, angle):
+    rotated_img = pygame.transform.rotate(self.image, angle)
+    new_rect = rotated_img.get_rect(center=self.rect.center)
+    return rotated_img, new_rect

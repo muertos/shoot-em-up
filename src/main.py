@@ -58,12 +58,12 @@ def make_level(level, sprites):
         enemy = Enemy(((img.get_width() + 12) * j), ((img.get_height() + 12)* i), sprites)
         sprites.add(enemy)
 
-def draw_text(text, color=(0,200,0)):
-  font = pygame.font.SysFont(None, 30)
+def draw_text(text, color=(0,200,0), font_size=30):
+  font = pygame.font.SysFont(None, font_size)
   return font.render(text, False, color)
 
 def create_game_window():
-  screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), DOUBLEBUF)
+  screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), HWSURFACE|DOUBLEBUF)
   background = pygame.Surface(screen.get_size())
   background = background.convert()
   background.fill(BG_COLOR)
@@ -85,6 +85,10 @@ def create_enemy_bullet(enemy, enemy_bullet_group):
   enemy_bullet_img = pygame.image.load('data/enemy_bullet.png')
   return EnemyBullet(enemy.rect.x + enemy.image.get_width() / 2 - enemy_bullet_img.get_width() / 2, enemy.rect.y + enemy_bullet_img.get_height(), enemy_bullet_group)
 
+def draw_hp(player, screen):
+  for i in range(0, player.hp):
+    screen.blit(draw_text("*", (0,200,0), 50), (i*15, screen.get_height() - 20))
+
 def main():
   # initialize pygame and game screen
   pygame.init()
@@ -105,11 +109,15 @@ def main():
   enemy_group = pygame.sprite.Group()
   enemy_bullet_group = pygame.sprite.Group()
   player_group = pygame.sprite.Group()
+  asteroid_group = pygame.sprite.Group()
   
   # game state and game objects
   lose = win = False
   player = create_player(player_group)
   make_level(level, enemy_group)
+  next_asteroid_time = 0
+  asteroid_spawn_delay = random.randrange(7000, 15000)
+  asteroid_img = pygame.image.load('data/asteroid.png')
 
   # load introduction
   while True:
@@ -128,8 +136,9 @@ def main():
 
   clock = pygame.time.Clock()
   screen.blit(background, (0,0))
+  draw_hp(player, screen)
   while True:
-    #clock.tick(120)
+    # counter to delay star layers
     inc += 1
 
     # event handler
@@ -158,12 +167,32 @@ def main():
     if keys[pygame.K_UP]:
       delay -= 1
 
+    # spawn asteroids
+    if time_now > next_asteroid_time:
+      print("spawn asteroid")
+      x = random.randrange(0, screen.get_width() - asteroid_img.get_width())
+      asteroid = Asteroid(x, 0 - asteroid_img.get_height(), asteroid_group)
+      next_asteroid_time = time_now + random.randrange(2000, 5000)
+
+    # move asteroids
+    # FIXME: this is slooooow, bogs down cpu, pre-render rotated sprites
+    if inc % 2 == 0:
+      for asteroid in asteroid_group.sprites():
+        asteroid.move()
+        if inc % 20 == 0:
+          asteroid.image, asteroid.rect = asteroid.rotate(2.0)
+        if asteroid.rect.y > screen.get_height():
+          asteroid_group.remove(asteroid)
+
     # move bullets / bullet collision detection
     for bullet in bullet_group.sprites():
       bullet.move(bullet.speed)
-      collisions = pygame.sprite.spritecollide(bullet, enemy_group, True, collided=pygame.sprite.collide_mask)
+      collisions = pygame.sprite.spritecollide(bullet, enemy_group, False, collided=pygame.sprite.collide_mask)
       for enemy in collisions:
+        enemy.hp -= 1
         bullet_group.remove(bullet)
+        if enemy.hp == 0:
+          enemy_group.remove(enemy)
         if not enemy_group:
           win = True
         if bullet.rect.y < 0:
@@ -201,6 +230,9 @@ def main():
       bullet.move(bullet.speed)
       collisions = pygame.sprite.spritecollide(bullet, player_group, False, collided=pygame.sprite.collide_mask)
       if collisions:
+        enemy_bullet_group.remove(bullet)
+        player.hp -= 1
+      if player.hp == 0:
         lose = True
 
     # we draw things after screen.fill, otherwise they don't display!
@@ -228,11 +260,13 @@ def main():
       screen.blit(draw_text("you're a winner! :)"), (SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 30))
     if lose:
       screen.blit(draw_text("you lose :(", (200,0,0)), (SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 30))
+    asteroid_group.draw(screen)
     bullet_group.draw(screen)
     enemy_group.draw(screen)
     enemy_bullet_group.draw(screen)
     player_group.draw(screen)
-    
+    draw_hp(player, screen)
+
     pygame.time.delay(delay)
     pygame.display.flip()
 
