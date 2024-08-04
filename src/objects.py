@@ -124,18 +124,28 @@ class EnemyBullet(pygame.sprite.Sprite):
     self.rect.y += direction
 
 class Asteroid(pygame.sprite.Sprite):
-  def __init__(self, x, y, sprite_group) -> None:
+  def __init__(self, x, y, sprite_group, rotated_sprites) -> None:
     pygame.sprite.Sprite.__init__(self, sprite_group)
     self.image, self.rect = load_png('asteroid.png')
+    #self.orig_rect = self.rect
+    #self.orig_image = self.image
     self.mask = pygame.mask.from_surface(self.image)
-    self.rect.x = x
-    self.rect.y = y
+    self.orig_x = x
+    self.y = y
     self.speed = 1
+    # pre-load sprite rotations to not make the cpu work so hard
+    self.rotated_sprites = rotated_sprites
+    self.rotation_counter = 0
 
   def move(self):
-    self.rect.y += self.speed
+    self.y += self.speed
+    #self.rotated_sprites[self.rotation_counter][1].y += self.speed
 
-  def rotate(self, angle):
-    rotated_img = pygame.transform.rotate(self.image, angle)
-    new_rect = rotated_img.get_rect(center=self.rect.center)
-    return rotated_img, new_rect
+  def next_sprite(self):
+    # update mask?
+    if self.rotation_counter == len(self.rotated_sprites):
+      self.rotation_counter = 0
+    self.image = self.rotated_sprites[self.rotation_counter][0]
+    self.rect = self.rotated_sprites[self.rotation_counter][1]
+    self.rect.centerx = self.orig_x
+    self.rect.centery = self.y

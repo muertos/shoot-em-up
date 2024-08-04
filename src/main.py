@@ -89,6 +89,32 @@ def draw_hp(player, screen):
   for i in range(0, player.hp):
     screen.blit(draw_text("*", (0,200,0), 50), (i*15, screen.get_height() - 20))
 
+def generate_sprite_rotations(angle, image):
+  image, orig_rect = load_png(image)
+  rotated_sprites = []
+  current_angle = 0.0
+  for loop in range(0, int(360.0 / angle)):
+    current_angle = current_angle + angle
+    rotated_img = pygame.transform.rotate(image, current_angle)
+    rotated_rect = rotated_img.get_rect(center=orig_rect.center)
+    rotated_sprites.append((rotated_img, rotated_rect))
+  return rotated_sprites
+
+def intro(screen, background):
+  while True:
+    # need event handler for this loop to function
+    for event in pygame.event.get():
+      if event.type == QUIT:
+        return
+    screen.blit(background, (0,0))
+    screen.blit(draw_text("arrow keys to move, space to shoot, press enter to play"), (150, SCREEN_HEIGHT / 2 - 30))
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_RETURN]:
+      break
+    if keys[pygame.K_END] or keys[pygame.K_ESCAPE]:
+      sys.exit(0)
+    pygame.display.flip()
+
 def main():
   # initialize pygame and game screen
   pygame.init()
@@ -120,30 +146,23 @@ def main():
   asteroid_img = pygame.image.load('data/asteroid.png')
 
   # load introduction
-  while True:
-    screen.blit(background, (0,0))
-    screen.blit(draw_text("arrow keys to move, space to shoot, press enter to play"), (150, SCREEN_HEIGHT / 2 - 30))
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_RETURN]:
-      break
-    if keys[pygame.K_END] or keys[pygame.K_ESCAPE]:
-      sys.exit(0)
-    # need event handler for this loop to function
-    for e in pygame.event.get():
-      if e.type == QUIT:
-        return
-    pygame.display.flip()
+  intro(screen, background)
 
   clock = pygame.time.Clock()
   screen.blit(background, (0,0))
   draw_hp(player, screen)
+
+  # render rotated asteroids
+  rotated_asteroid_sprites = generate_sprite_rotations(1.0, 'asteroid.png')
+  #rotation_counter = 0
+  
   while True:
-    # counter to delay star layers
+    # counter to delay animations
     inc += 1
 
     # event handler
-    for e in pygame.event.get():
-      if e.type == QUIT:
+    for event in pygame.event.get():
+      if event.type == QUIT:
         return
     keys = pygame.key.get_pressed()
     time_now = pygame.time.get_ticks()
@@ -169,18 +188,17 @@ def main():
 
     # spawn asteroids
     if time_now > next_asteroid_time:
-      print("spawn asteroid")
+      print("asteroid spawn")
       x = random.randrange(0, screen.get_width() - asteroid_img.get_width())
-      asteroid = Asteroid(x, 0 - asteroid_img.get_height(), asteroid_group)
+      asteroid = Asteroid(x, 0 - asteroid_img.get_height(), asteroid_group, rotated_asteroid_sprites)
       next_asteroid_time = time_now + random.randrange(2000, 5000)
 
     # move asteroids
-    # FIXME: this is slooooow, bogs down cpu, pre-render rotated sprites
     if inc % 2 == 0:
       for asteroid in asteroid_group.sprites():
+        asteroid.rotation_counter += 1
         asteroid.move()
-        if inc % 20 == 0:
-          asteroid.image, asteroid.rect = asteroid.rotate(2.0)
+        asteroid.next_sprite()
         if asteroid.rect.y > screen.get_height():
           asteroid_group.remove(asteroid)
 
@@ -238,6 +256,12 @@ def main():
     # we draw things after screen.fill, otherwise they don't display!
     screen.fill(BG_COLOR)
 
+    # display rotated asteroid
+    #if rotation_counter == len(rotated_asteroid_sprites):
+    #  rotation_counter = 0
+    #print(rotated_asteroid_sprites[rotation_counter][1].center)
+    #screen.blit(rotated_asteroid_sprites[rotation_counter][0], rotated_asteroid_sprites[rotation_counter][1])
+
     # Check if stars hit the screen border
     stars = move_stars(screen, stars, 0, STAR_LAYER_1, direction)
     if (inc % 2 == 0):
@@ -260,6 +284,7 @@ def main():
       screen.blit(draw_text("you're a winner! :)"), (SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 30))
     if lose:
       screen.blit(draw_text("you lose :(", (200,0,0)), (SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 30))
+
     asteroid_group.draw(screen)
     bullet_group.draw(screen)
     enemy_group.draw(screen)
@@ -270,5 +295,6 @@ def main():
     pygame.time.delay(delay)
     pygame.display.flip()
 
+    #rotation_counter += 1
 if __name__ == "__main__":
   main()
