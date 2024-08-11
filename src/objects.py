@@ -25,13 +25,16 @@ class Player(pygame.sprite.Sprite):
     self.speed = 5
     # used as part of bullet delay calculation
     self.next_bullet_time = 0
+    self.bullet_delay = 200
+    self.speed_power_up_duration = 5000
+    self.speed_power_up_expiry = 0
     self.hp = 5
 
   def move(self, direction):
     self.rect.x += direction
 
 class Bullet(pygame.sprite.Sprite):
-  def __init__(self, x, y, sprite_group) -> None:
+  def __init__(self, x, y, delay, sprite_group) -> None:
     # adds Bullet sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
     self.image, self.rect = load_png('bullet.png')
@@ -39,8 +42,20 @@ class Bullet(pygame.sprite.Sprite):
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.x = x
     self.rect.y = y
-    self.delay = 50
+    self.delay = delay
     self.speed = -8
+
+  def move(self, direction):
+    self.rect.y += direction
+
+class SpeedPowerUp(pygame.sprite.Sprite):
+  def __init__(self, x, y, sprite_group) -> None:
+    pygame.sprite.Sprite.__init__(self, sprite_group)
+    self.image, self.rect = load_png('speed_power_up.png')
+    self.mask = pygame.mask.from_surface(self.image)
+    self.rect.x = x
+    self.rect.y = y
+    self.speed = 1
 
   def move(self, direction):
     self.rect.y += direction
@@ -130,16 +145,15 @@ class Asteroid(pygame.sprite.Sprite):
     #self.orig_rect = self.rect
     #self.orig_image = self.image
     self.mask = pygame.mask.from_surface(self.image)
-    self.orig_x = x
-    self.y = y
+    self.centerx = x
+    self.centery = y
     self.speed = 1
     # pre-load sprite rotations to not make the cpu work so hard
     self.rotated_sprites = rotated_sprites
     self.rotation_counter = 0
 
   def move(self):
-    self.y += self.speed
-    #self.rotated_sprites[self.rotation_counter][1].y += self.speed
+    self.centery += self.speed
 
   def next_sprite(self):
     # update mask?
@@ -147,5 +161,6 @@ class Asteroid(pygame.sprite.Sprite):
       self.rotation_counter = 0
     self.image = self.rotated_sprites[self.rotation_counter][0]
     self.rect = self.rotated_sprites[self.rotation_counter][1]
-    self.rect.centerx = self.orig_x
-    self.rect.centery = self.y
+    self.mask = pygame.mask.from_surface(self.image)
+    self.rect.centerx = self.centerx
+    self.rect.centery = self.centery

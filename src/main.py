@@ -77,9 +77,9 @@ def create_player(group):
   player_img = pygame.image.load('data/ship.png')
   return Player((SCREEN_WIDTH / 2) - (player_img.get_width() / 2), SCREEN_HEIGHT - player_img.get_height(), group)
 
-def create_bullet(player, bullet_group):
+def create_bullet(player, delay, bullet_group):
   bullet_img = pygame.image.load('data/bullet.png')
-  return Bullet(player.rect.x + (player.image.get_width() / 2) - (bullet_img.get_width() / 2), player.rect.y, bullet_group)
+  return Bullet(player.rect.x + (player.image.get_width() / 2) - (bullet_img.get_width() / 2), player.rect.y, delay, bullet_group)
 
 def create_enemy_bullet(enemy, enemy_bullet_group):
   enemy_bullet_img = pygame.image.load('data/enemy_bullet.png')
@@ -136,6 +136,7 @@ def main():
   enemy_bullet_group = pygame.sprite.Group()
   player_group = pygame.sprite.Group()
   asteroid_group = pygame.sprite.Group()
+  power_ups = pygame.sprite.Group()
   
   # game state and game objects
   lose = win = False
@@ -154,7 +155,6 @@ def main():
 
   # render rotated asteroids
   rotated_asteroid_sprites = generate_sprite_rotations(1.0, 'asteroid.png')
-  #rotation_counter = 0
   
   while True:
     # counter to delay animations
@@ -177,18 +177,14 @@ def main():
         if player.rect.x + player.image.get_width() > screen.get_width():
           player.rect.x = prev_x
       if keys[pygame.K_SPACE] and time_now > player.next_bullet_time:
-        bullet = create_bullet(player, bullet_group)
+        bullet = create_bullet(player, player.bullet_delay, bullet_group)
         # introduce delay between bullets
         player.next_bullet_time = bullet.delay + time_now
     if keys[pygame.K_END] or keys[pygame.K_ESCAPE]:
       sys.exit(0)
-    # make things faster
-    if keys[pygame.K_UP]:
-      delay -= 1
 
     # spawn asteroids
     if time_now > next_asteroid_time:
-      print("asteroid spawn")
       x = random.randrange(0, screen.get_width() - asteroid_img.get_width())
       asteroid = Asteroid(x, 0 - asteroid_img.get_height(), asteroid_group, rotated_asteroid_sprites)
       next_asteroid_time = time_now + random.randrange(2000, 5000)
@@ -210,6 +206,9 @@ def main():
         enemy.hp -= 1
         bullet_group.remove(bullet)
         if enemy.hp == 0:
+          # 1 in 10 chance to spawn power up
+          if random.random() < 0.1:
+            power_up = SpeedPowerUp(enemy.rect.x, enemy.rect.y, power_ups)
           enemy_group.remove(enemy)
         if not enemy_group:
           win = True
@@ -221,9 +220,10 @@ def main():
       prev_x = enemy.rect.x
       prev_y = enemy.rect.y
       enemy.move_random()
-      collisions = pygame.sprite.spritecollide(enemy, enemy_group, False, collided=pygame.sprite.collide_mask)
-      collisions.remove(enemy)
-      if collisions:
+      enemy_collisions = pygame.sprite.spritecollide(enemy, enemy_group, False, collided=pygame.sprite.collide_mask)
+      asteroid_collisions = pygame.sprite.spritecollide(enemy, asteroid_group, False, collided=pygame.sprite.collide_mask)
+      enemy_collisions.remove(enemy)
+      if enemy_collisions or asteroid_collisions:
         enemy.rect.x = prev_x
         enemy.rect.y = prev_y
       # check if enemies are out of bounds  
@@ -253,14 +253,24 @@ def main():
       if player.hp == 0:
         lose = True
 
+    # move power ups
+    for power_up in power_ups:
+      power_up.move(power_up.speed)
+      collisions = pygame.sprite.spritecollide(power_up, player_group, False, collided=pygame.sprite.collide_mask)
+      if collisions:
+        power_ups.remove(power_up)
+        player.bullet_delay = 50
+        player.speed_power_up_expiry = time_now + player.speed_power_up_duration
+      if power_up.rect.y > screen.get_height():
+        power_ups.remove(power_up)
+
+    # check if power up buff has expired
+    if time_now > player.speed_power_up_expiry:
+      player.speed_power_up_expiry = 0
+      player.bullet_delay = 200
+
     # we draw things after screen.fill, otherwise they don't display!
     screen.fill(BG_COLOR)
-
-    # display rotated asteroid
-    #if rotation_counter == len(rotated_asteroid_sprites):
-    #  rotation_counter = 0
-    #print(rotated_asteroid_sprites[rotation_counter][1].center)
-    #screen.blit(rotated_asteroid_sprites[rotation_counter][0], rotated_asteroid_sprites[rotation_counter][1])
 
     # Check if stars hit the screen border
     stars = move_stars(screen, stars, 0, STAR_LAYER_1, direction)
@@ -289,12 +299,12 @@ def main():
     bullet_group.draw(screen)
     enemy_group.draw(screen)
     enemy_bullet_group.draw(screen)
+    power_ups.draw(screen)
     player_group.draw(screen)
     draw_hp(player, screen)
 
     pygame.time.delay(delay)
     pygame.display.flip()
 
-    #rotation_counter += 1
 if __name__ == "__main__":
   main()
