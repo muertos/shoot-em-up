@@ -2,6 +2,7 @@
 
 from objects import *
 import copy
+import pdb
 
 # Constants
 SCREEN_WIDTH = 800
@@ -25,10 +26,23 @@ DOWN = 1
 
 # define testing level
 level = [
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   [0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
   [1,0,0,0,0,0,1,0,0,0,0,1,0,0,1,0],
   [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
   [0,1,0,0,0,0,0,0,0,0,1,0,1,0,1,0]]
+
+#level = [
+#  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#  [0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0],
+#  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]
+
 
 def init_stars(screen):
   stars = []
@@ -55,7 +69,14 @@ def make_level(level, sprites):
   for i in range(len(level)):
     for j in range(len(level[i])):
       if level[i][j] == 1:
-        enemy = Enemy(((img.get_width() + 12) * j), ((img.get_height() + 12)* i), sprites)
+        angle = 270
+        #radius = 50 + random.randrange(0, 40)
+        radius = 50
+        arc_dir = 5
+        if random.random() > .5:
+          arc_dir = -5
+        enemy = Enemy(((img.get_width() + 12) * j), ((img.get_height() + 12)* i), angle, radius, arc_dir, sprites)
+        print(enemy.centerx, enemy.centery)
         sprites.add(enemy)
 
 def draw_text(text, color=(0,200,0), font_size=30):
@@ -166,16 +187,16 @@ def main():
         return
     keys = pygame.key.get_pressed()
     time_now = pygame.time.get_ticks()
-    prev_x = player.rect.x
+    old_x = player.rect.x
     if not lose:
       if keys[pygame.K_LEFT]:
         player.move(-player.speed)
         if player.rect.x < 0:
-          player.rect.x = prev_x
+          player.rect.x = old_x
       if keys[pygame.K_RIGHT]:
         player.move(player.speed)
         if player.rect.x + player.image.get_width() > screen.get_width():
-          player.rect.x = prev_x
+          player.rect.x = old_x
       if keys[pygame.K_SPACE] and time_now > player.next_bullet_time:
         bullet = create_bullet(player, player.bullet_delay, bullet_group)
         # introduce delay between bullets
@@ -216,25 +237,36 @@ def main():
           bullet_group.remove(bullet)
           
     # enemy movement / collision detection  
-    for enemy in enemy_group.sprites():
-      prev_x = enemy.rect.x
-      prev_y = enemy.rect.y
-      enemy.move_random()
-      enemy_collisions = pygame.sprite.spritecollide(enemy, enemy_group, False, collided=pygame.sprite.collide_mask)
-      asteroid_collisions = pygame.sprite.spritecollide(enemy, asteroid_group, False, collided=pygame.sprite.collide_mask)
-      enemy_collisions.remove(enemy)
-      if enemy_collisions or asteroid_collisions:
-        enemy.rect.x = prev_x
-        enemy.rect.y = prev_y
-      # check if enemies are out of bounds  
-      if enemy.rect.x + enemy.image.get_width() > screen.get_width():
-        enemy.rect.x = prev_x
-      if enemy.rect.x < 0:
-        enemy.rect.x = prev_x
-      if enemy.rect.y + enemy.image.get_height() > screen.get_height():
-        enemy.rect.y = prev_y
-      if enemy.rect.y < 0:
-        enemy.rect.y = prev_y
+    if inc % 3 == 0:
+      for enemy in enemy_group.sprites():
+        if not enemy.collided:
+          enemy.old_x = enemy.rect.x
+          enemy.old_y = enemy.rect.y
+          enemy.move_arc()
+        # check if enemies are out of bounds  
+        if enemy.rect.x + enemy.image.get_width() > screen.get_width():
+          enemy.rect.x = enemy.old_x
+        if enemy.rect.x < 0:
+          enemy.rect.x = enemy.old_x
+        if enemy.rect.y + enemy.image.get_height() > screen.get_height():
+          enemy.rect.y = enemy.old_y
+        if enemy.rect.y < 0:
+          enemy.rect.y = enemy.old_y
+      for enemy in enemy_group.sprites():
+        enemy_collisions = pygame.sprite.spritecollide(enemy, enemy_group, False, collided=pygame.sprite.collide_mask)
+        #asteroid_collisions = pygame.sprite.spritecollide(enemy, asteroid_group, False, collided=pygame.sprite.collide_mask)
+        enemy_collisions.remove(enemy)
+        if enemy_collisions:
+          enemy.collided = True
+          enemy.rect.x = enemy.old_x
+          enemy.rect.y = enemy.old_y
+          for collided_enemy in enemy_collisions:
+            collided_enemy.rect.x = collided_enemy.old_x
+            collided_enemy.rect.y = collided_enemy.old_y
+        if not enemy_collisions:
+          enemy.collided = False
+
+        
 
     # create enemy bullets
     for enemy in enemy_group.sprites():

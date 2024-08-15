@@ -1,4 +1,4 @@
-import pygame, random, sys, os
+import pygame, random, sys, os, math
 from pygame.locals import *
 
 def load_png(name):
@@ -61,13 +61,15 @@ class SpeedPowerUp(pygame.sprite.Sprite):
     self.rect.y += direction
 
 class Enemy(pygame.sprite.Sprite):
-  def __init__(self, x, y, sprite_group) -> None:
+  def __init__(self, x, y, angle, radius, arc_dir, sprite_group) -> None:
     # adds Enemy sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
     self.image, self.rect = load_png('enemy_ship.png')
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.x = x
     self.rect.y = y
+    self.old_x = 0
+    self.old_y = 0
     self.x_dir = 0
     self.y_dir = 0
     self.speed = 1
@@ -75,6 +77,13 @@ class Enemy(pygame.sprite.Sprite):
     self.shooting = True
     self.next_bullet_time = 0
     self.hp = 3
+    self.radius = radius 
+    self.angle = angle
+    self.arc_dir = arc_dir
+    self.centerx = self.rect.x + self.radius * math.sin(self.angle)
+    self.centery = self.rect.y - self.radius * math.cos(self.angle)
+    self.radius_inc = 1
+    self.collided = False
 
   def move_back_and_forth(self):
     self.rect.x += self.speed
@@ -124,6 +133,22 @@ class Enemy(pygame.sprite.Sprite):
   def reverse_direction(self):
     self.x_dir = -self.x_dir
     self.y_dir = -self.y_dir
+
+  def move_arc(self):
+    angle = math.radians(self.angle)
+    self.rect.x = self.centerx + (math.sin(angle) * self.radius)
+    self.rect.y = self.centery + (math.cos(angle) * self.radius)
+    self.angle += self.arc_dir
+    self.radius += self.radius_inc
+    if self.radius > 200:
+      self.radius_inc = -1
+    if self.radius < 1:
+      self.radius_inc = 1
+    #if self.angle > 420:
+    #  self.arc_dir = -5
+    #if self.angle < 300:
+    #  self.arc_dir = 5
+
 
 class EnemyBullet(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
