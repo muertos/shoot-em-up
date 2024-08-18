@@ -15,6 +15,37 @@ def load_png(name):
     raise SystemExit(message)
   return image, image.get_rect()
 
+def create_player(group, game):
+  player_img = pygame.image.load('data/ship.png')
+  return Player((game.width / 2) - (player_img.get_width() / 2),
+                 game.height - player_img.get_height(),
+                 group)
+
+def create_bullet(player, delay, bullet_group):
+  bullet_img = pygame.image.load('data/bullet.png')
+  return Bullet(player.rect.x + (player.image.get_width() / 2) - (bullet_img.get_width() / 2),
+                player.rect.y,
+                delay,
+                bullet_group)
+
+def create_enemy_bullet(enemy, enemy_bullet_group):
+  enemy_bullet_img = pygame.image.load('data/enemy_bullet.png')
+  return EnemyBullet(enemy.rect.x + enemy.image.get_width() / 2 - enemy_bullet_img.get_width() / 2,
+                     enemy.rect.y + enemy_bullet_img.get_height(),
+                     enemy_bullet_group)
+
+def generate_sprite_rotations(angle, image):
+  # rotate a sprite 360 degrees, return list of rotated sprites
+  image, orig_rect = load_png(image)
+  rotated_sprites = []
+  current_angle = 0.0
+  for loop in range(0, int(360.0 / angle)):
+    current_angle = current_angle + angle
+    rotated_img = pygame.transform.rotate(image, current_angle)
+    rotated_rect = rotated_img.get_rect(center=orig_rect.center)
+    rotated_sprites.append((rotated_img, rotated_rect))
+  return rotated_sprites
+
 class Player(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
     pygame.sprite.Sprite.__init__(self, sprite_group)
@@ -84,6 +115,8 @@ class Enemy(pygame.sprite.Sprite):
     self.centery = self.rect.y - self.radius * math.cos(self.angle)
     self.radius_inc = 1
     self.collided = False
+    self.movement_style = "random"
+    self.movement_timer = 5000
 
   def move_back_and_forth(self):
     self.rect.x += self.speed
@@ -148,7 +181,6 @@ class Enemy(pygame.sprite.Sprite):
     #  self.arc_dir = -5
     #if self.angle < 300:
     #  self.arc_dir = 5
-
 
 class EnemyBullet(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
