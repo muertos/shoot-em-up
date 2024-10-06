@@ -28,6 +28,17 @@ def create_bullet(player, delay, bullet_group):
                 delay,
                 bullet_group)
 
+def create_double_bullet(player, delay, bullet_group):
+  bullet_img = pygame.image.load('data/bullet.png')
+  return (Bullet(player.rect.x - (bullet_img.get_width() / 2),
+                player.rect.y,
+                delay,
+                bullet_group),
+         Bullet(player.rect.x + (player.image.get_width()) - (bullet_img.get_width() / 2),
+                player.rect.y,
+                delay,
+                bullet_group))
+
 def create_enemy_bullet(enemy, enemy_bullet_group):
   enemy_bullet_img = pygame.image.load('data/enemy_bullet.png')
   return EnemyBullet(enemy.rect.x + enemy.image.get_width() / 2 - enemy_bullet_img.get_width() / 2,
@@ -57,12 +68,22 @@ class Player(pygame.sprite.Sprite):
     # used as part of bullet delay calculation
     self.next_bullet_time = 0
     self.bullet_delay = 200
+    self.double_bullet_delay = 50
     self.speed_power_up_duration = 5000
     self.speed_power_up_expiry = 0
     self.hp = 5
 
-  def move(self, direction):
-    self.rect.x += direction
+  def move(self, x_direction, y_direction):
+    self.rect.x += x_direction
+    self.rect.y += y_direction
+
+  def draw_hp(self, game):
+    for i in range(0, self.hp):
+      game.screen.blit(
+        game.draw_text(
+          "*",
+          (0,200,0), 50),
+          (i*15, game.height - 20))
 
 class Bullet(pygame.sprite.Sprite):
   def __init__(self, x, y, delay, sprite_group) -> None:
@@ -208,6 +229,7 @@ class Asteroid(pygame.sprite.Sprite):
     # pre-load sprite rotations to not make the cpu work so hard
     self.rotated_sprites = rotated_sprites
     self.rotation_counter = 0
+    self.collided = False
 
   def move(self):
     self.centery += self.speed
