@@ -21,6 +21,7 @@ def main():
                                'asteroid.png')
 
   while True:
+    game.clock.tick(120)
     game.increment_animation_delay_counter()
     game.time_now = pygame.time.get_ticks()
     game.handle_input(player)
@@ -38,7 +39,6 @@ def main():
     game.draw_sprites()
     player.draw_hp(game)
     game.check_state()
-    pygame.time.delay(stars.delay)
     pygame.display.flip()
 
 if __name__ == "__main__":

@@ -118,10 +118,13 @@ class Enemy(pygame.sprite.Sprite):
     pygame.sprite.Sprite.__init__(self, sprite_group)
     self.image, self.rect = load_png('enemy_ship.png')
     self.mask = pygame.mask.from_surface(self.image)
+    #self.image = self.mask.to_surface()
     self.rect.x = x
     self.rect.y = y
     self.old_x = 0
     self.old_y = 0
+    self.old_arc_x = 0
+    self.old_arc_y = 0
     self.x_dir = 0
     self.y_dir = 0
     self.speed = 1
@@ -138,6 +141,16 @@ class Enemy(pygame.sprite.Sprite):
     self.collided = False
     self.movement_style = "random"
     self.movement_timer = 5000
+    self.move_incrementally = False
+    self.moves = ["up", "down", "left", "right"]
+    self.set_move_dir2()
+
+  def reset_moves(self):
+    self.moves = ["up", "down", "left", "right"]
+
+  def update_center(self):
+    self.centerx += self.x_dir
+    self.centery += self.y_dir
 
   def move_back_and_forth(self):
     self.rect.x += self.speed
@@ -202,6 +215,55 @@ class Enemy(pygame.sprite.Sprite):
     #  self.arc_dir = -5
     #if self.angle < 300:
     #  self.arc_dir = 5
+
+  def set_move_dir(self):
+    x_dist = self.rect.x - self.old_arc_x
+    y_dist = self.rect.y - self.old_arc_y
+    if abs(x_dist) >= abs(y_dist):
+      if x_dist >= 0:
+        self.x_dir = -1
+        self.y_dir = 0
+      if x_dist < 0:
+        self.x_dir = 1
+        self.y_dir = 0
+    else:
+      if y_dist >= 0:
+        self.y_dir = -1
+        self.x_dir = 0
+      if y_dist < 0:
+        self.y_dir = 1
+        self.x_dir = 0
+
+  def set_move_dir2(self):
+    if not self.moves:
+      self.reset_moves()
+    if self.moves[0] == "left":
+      self.x_dir = -1
+      self.y_dir = 0
+    elif self.moves[0] == "right": 
+      self.x_dir = 1
+      self.y_dir = 0
+    elif self.moves[0] == "up":
+      self.y_dir = -1
+      self.x_dir = 0
+    elif self.moves[0] == "down":
+      self.y_dir = 1
+      self.x_dir = 0
+
+  def check_collisions(self, sprite_group):
+    collisions = pygame.sprite.spritecollide(
+                   self,
+                   sprite_group,
+                   False,
+                   collided=pygame.sprite.collide_mask)
+    collisions.remove(self)
+    return collisions
+
+  def check_out_of_bounds(self, width, height, prev_x, prev_y):
+    if self.rect.x + self.image.get_width() > width or self.rect.x < 0:
+      self.rect.x = prev_x
+    if self.rect.y + self.image.get_height() > height or self.rect.y < 0:
+      self.rect.y = prev_y
 
 class EnemyBullet(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:

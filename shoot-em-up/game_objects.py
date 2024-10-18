@@ -1,6 +1,7 @@
 import pygame, random, sys, os, math
 from sprite_objects import *
 from pygame.locals import *
+import pdb
 
 class Game():
   def __init__(self, title, width, height, bg_color) -> None:
@@ -9,6 +10,7 @@ class Game():
     self.height = height
     self.bg_color = bg_color
     self.screen, self.background = self.create_window()
+    self.clock = pygame.time.Clock()
     self.lose = self.win = False
     self.animation_delay_counter = 1
     self.init_time = pygame.time.get_ticks()
@@ -26,6 +28,14 @@ class Game():
       [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
       [0,1,0,0,0,0,0,0,0,0,1,0,1,0,1,0]]
 
+    self.enemy_test_level = [
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0]
+    ]
+
     self.sprite_groups = {
       "bullets": pygame.sprite.Group(),
       "enemies": pygame.sprite.Group(),
@@ -36,7 +46,8 @@ class Game():
     }
 
     self.screen.blit(self.background, (0,0))
-    self.make_level(self.sprite_groups["enemies"])
+    #self.make_level(self.sprite_groups["enemies"])
+    self.make_test_level(self.sprite_groups["enemies"])
     pygame.init()
     self.intro()
 
@@ -65,17 +76,41 @@ class Game():
       for j in range(len(self.enemy_level[i])):
         if self.enemy_level[i][j] == 1:
           angle = 270
-          radius = 50
+          radius = 50 + random.randint(0, 20)
           arc_dir = 5
           if random.random() > .5:
             arc_dir = -5
           enemy = Enemy(((img.get_width() + 12) * j),
-                       ((img.get_height() + 12)* i),
+                       ((img.get_height() + 12) * i),
                        angle,
                        radius,
                        arc_dir,
                        sprites)
           sprites.add(enemy)
+
+  def make_test_level(self, sprites):
+    # initialize width / height
+    img = pygame.image.load('data/enemy_ship.png')
+    """ create sprite group of enemies at coordinates specified by matrix """  
+    c = 0
+    for i in range(len(self.enemy_test_level)):
+      for j in range(len(self.enemy_test_level[i])):
+        if self.enemy_test_level[i][j] == 1:
+          c += 1
+          angle = 270
+          radius = 60
+          arc_dir = 5
+          if c == 2:
+            arc_dir = -5
+            angle = 135
+          enemy = Enemy(((img.get_width() + 12) * j),
+                       ((img.get_height() + 12) * i),
+                       angle,
+                       radius,
+                       arc_dir,
+                       sprites)
+          sprites.add(enemy)
+      
 
   def intro(self):
     while True:
@@ -210,43 +245,37 @@ class Game():
 
   def animate_enemies(self):
     """ animate enemies and check for collisions against themselves """
-    if self.animation_delay_counter % 3 == 0:
+    if self.animation_delay_counter % 6 == 0:
       for enemy in self.sprite_groups["enemies"].sprites():
         if not enemy.collided:
+          enemy.old_arc_x = enemy.rect.x
+          enemy.old_arc_y = enemy.rect.y
+          enemy.move_arc()
+          enemy.check_out_of_bounds(self.width, self.height, enemy.old_arc_x, enemy.old_arc_y)
+          collisions = enemy.check_collisions(self.sprite_groups["enemies"])
+          if collisions:
+            enemy.collided = True
+            enemy.rect.x = enemy.old_arc_x
+            enemy.rect.y = enemy.old_arc_y
+        elif enemy.collided:
+          pdb.set_trace()
           enemy.old_x = enemy.rect.x
           enemy.old_y = enemy.rect.y
-          # move enemies in different patterns based on elapsed time
-          if self.time_now < self.init_time + enemy.movement_timer:
-            enemy.move_arc()
-          else:
-            enemy.move_random()
-        # check if enemies are out of bounds  
-        if enemy.rect.x + enemy.image.get_width() > self.width:
-          enemy.rect.x = enemy.old_x
-        if enemy.rect.x < 0:
-          enemy.rect.x = enemy.old_x
-        if enemy.rect.y + enemy.image.get_height() > self.height:
-          enemy.rect.y = enemy.old_y
-        if enemy.rect.y < 0:
-          enemy.rect.y = enemy.old_y
-      for enemy in self.sprite_groups["enemies"].sprites():
-        enemy_collisions = pygame.sprite.spritecollide(
-                             enemy,
-                             self.sprite_groups["enemies"],
-                             False,
-                             collided=pygame.sprite.collide_mask)
-        #asteroid_collisions = pygame.sprite.spritecollide(enemy, asteroid_group, False, collided=pygame.sprite.collide_mask)
-        enemy_collisions.remove(enemy)
-        if enemy_collisions:
-          enemy.collided = True
-          enemy.rect.x = enemy.old_x
-          enemy.rect.y = enemy.old_y
-          for collided_enemy in enemy_collisions:
-            collided_enemy.rect.x = collided_enemy.old_x
-            collided_enemy.rect.y = collided_enemy.old_y
-        if not enemy_collisions:
-          enemy.collided = False
-
+          print("enemy.move")
+          enemy.move()
+          enemy.update_center()
+          #enemy.move_arc()
+          collisions = enemy.check_collisions(self.sprite_groups["enemies"])
+          if collisions:
+            enemy.rect.x = enemy.old_x
+            enemy.rect.y = enemy.old_y
+            # try another move direction
+            enemy.moves.pop(0)
+            print(enemy.moves)
+            enemy.set_move_dir2()
+          if not collisions:
+            enemy.collided = False
+              
   def animate_enemy_bullets(self, player):
     """ create enemy bullets, move them, and check for collisions against player """
     for enemy in self.sprite_groups["enemies"].sprites():
@@ -300,7 +329,6 @@ class Stars():
     self.lightblue = 200, 200, 255
     self.lightred = 255, 200, 200
     self.lightyellow = 255, 200, 255
-    self.delay = 8
     self.game = game
     self.init(self.game.screen)
     self.init_layer_1()
