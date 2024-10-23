@@ -46,8 +46,8 @@ class Game():
     }
 
     self.screen.blit(self.background, (0,0))
-    #self.make_level(self.sprite_groups["enemies"])
-    self.make_test_level(self.sprite_groups["enemies"])
+    self.make_level(self.sprite_groups["enemies"])
+    #self.make_test_level(self.sprite_groups["enemies"])
     pygame.init()
     self.intro()
 
@@ -97,12 +97,12 @@ class Game():
       for j in range(len(self.enemy_test_level[i])):
         if self.enemy_test_level[i][j] == 1:
           c += 1
-          angle = 270
+          angle = 0
           radius = 60
           arc_dir = 5
           if c == 2:
             arc_dir = -5
-            angle = 135
+            angle = 180
           enemy = Enemy(((img.get_width() + 12) * j),
                        ((img.get_height() + 12) * i),
                        angle,
@@ -245,36 +245,40 @@ class Game():
 
   def animate_enemies(self):
     """ animate enemies and check for collisions against themselves """
-    if self.animation_delay_counter % 6 == 0:
+    if self.animation_delay_counter % 3 == 0:
       for enemy in self.sprite_groups["enemies"].sprites():
+        enemy.old_x = enemy.rect.x
+        enemy.old_y = enemy.rect.y
+        #print("enemy x,y cx,cy, angle:", enemy.rect.x, enemy.rect.y, enemy.centerx, enemy.centery, enemy.angle, enemy.collided, id(enemy))
         if not enemy.collided:
-          enemy.old_arc_x = enemy.rect.x
-          enemy.old_arc_y = enemy.rect.y
+          enemy.old_angle = enemy.angle
           enemy.move_arc()
-          enemy.check_out_of_bounds(self.width, self.height, enemy.old_arc_x, enemy.old_arc_y)
           collisions = enemy.check_collisions(self.sprite_groups["enemies"])
           if collisions:
             enemy.collided = True
-            enemy.rect.x = enemy.old_arc_x
-            enemy.rect.y = enemy.old_arc_y
+            enemy.rect.x = enemy.old_x
+            enemy.rect.y = enemy.old_y
+            enemy.angle = enemy.old_angle
         elif enemy.collided:
-          pdb.set_trace()
-          enemy.old_x = enemy.rect.x
-          enemy.old_y = enemy.rect.y
-          print("enemy.move")
+          #pdb.set_trace()
+          enemy.old_centerx = enemy.centerx
+          enemy.old_centery = enemy.centery
           enemy.move()
           enemy.update_center()
-          #enemy.move_arc()
           collisions = enemy.check_collisions(self.sprite_groups["enemies"])
           if collisions:
             enemy.rect.x = enemy.old_x
             enemy.rect.y = enemy.old_y
+            enemy.centerx = enemy.old_centerx
+            enemy.centery = enemy.old_centery
             # try another move direction
             enemy.moves.pop(0)
-            print(enemy.moves)
+            #print(enemy.moves, id(enemy))
             enemy.set_move_dir2()
           if not collisions:
+            #print("move:", enemy.rect.x, enemy.rect.y, id(enemy))
             enemy.collided = False
+        enemy.check_out_of_bounds(self.width, self.height, enemy.old_x, enemy.old_y)    
               
   def animate_enemy_bullets(self, player):
     """ create enemy bullets, move them, and check for collisions against player """

@@ -121,10 +121,9 @@ class Enemy(pygame.sprite.Sprite):
     #self.image = self.mask.to_surface()
     self.rect.x = x
     self.rect.y = y
-    self.old_x = 0
-    self.old_y = 0
-    self.old_arc_x = 0
-    self.old_arc_y = 0
+    self.old_x = None
+    self.old_y = None
+    self.old_angle = None
     self.x_dir = 0
     self.y_dir = 0
     self.speed = 1
@@ -132,11 +131,9 @@ class Enemy(pygame.sprite.Sprite):
     self.shooting = True
     self.next_bullet_time = 0
     self.hp = 3
-    self.radius = radius 
+    self.radius = 70 
     self.angle = angle
     self.arc_dir = arc_dir
-    self.centerx = self.rect.x + self.radius * math.sin(self.angle)
-    self.centery = self.rect.y - self.radius * math.cos(self.angle)
     self.radius_inc = 1
     self.collided = False
     self.movement_style = "random"
@@ -144,9 +141,25 @@ class Enemy(pygame.sprite.Sprite):
     self.move_incrementally = False
     self.moves = ["up", "down", "left", "right"]
     self.set_move_dir2()
+    self.centerx = None
+    self.centery = None
+    self.old_centerx = None
+    self.old_centery = None
+    self.set_center()
+    self.init_xy()
 
   def reset_moves(self):
     self.moves = ["up", "down", "left", "right"]
+
+  def init_xy(self):
+    angle = math.radians(self.angle)
+    self.rect.y = self.centery + (math.sin(angle) * self.radius)
+    self.rect.x = self.centerx + (math.cos(angle) * self.radius)
+
+  def set_center(self):
+    angle = math.radians(self.angle)
+    self.centery = self.rect.y + (self.radius * math.sin(angle))
+    self.centerx = self.rect.x + (self.radius * math.cos(angle))
 
   def update_center(self):
     self.centerx += self.x_dir
@@ -203,18 +216,18 @@ class Enemy(pygame.sprite.Sprite):
 
   def move_arc(self):
     angle = math.radians(self.angle)
-    self.rect.x = self.centerx + (math.sin(angle) * self.radius)
-    self.rect.y = self.centery + (math.cos(angle) * self.radius)
+    self.rect.y = self.centery + (math.sin(angle) * self.radius)
+    self.rect.x = self.centerx + (math.cos(angle) * self.radius)
     self.angle += self.arc_dir
     self.radius += self.radius_inc
     if self.radius > 200:
       self.radius_inc = -1
     if self.radius < 1:
       self.radius_inc = 1
-    #if self.angle > 420:
-    #  self.arc_dir = -5
-    #if self.angle < 300:
-    #  self.arc_dir = 5
+    if self.angle > 360:
+      self.angle = 0
+    if self.angle < 0:
+      self.angle = 360
 
   def set_move_dir(self):
     x_dist = self.rect.x - self.old_arc_x
