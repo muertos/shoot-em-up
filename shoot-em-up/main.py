@@ -30,7 +30,7 @@ def main():
     game.animate_bullets()
     game.animate_enemies()
     game.animate_enemy_bullets(player)
-    game.animate_powerups()
+    game.animate_powerups(player)
     stars.move_layers()
     game.check_player_hp(player)
     game.check_powerup_expiry(player)

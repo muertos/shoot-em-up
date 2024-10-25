@@ -19,14 +19,19 @@ class Game():
     self.time_now = pygame.time.get_ticks()
 
     self.enemy_level = [
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
-      [1,0,0,0,0,0,1,0,0,0,0,1,0,0,1,0],
-      [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
-      [0,1,0,0,0,0,0,0,0,0,1,0,1,0,1,0]]
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+      [0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,1,0],
+      [0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+      [0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,1,0,1,0]]
 
     self.enemy_test_level = [
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -75,7 +80,7 @@ class Game():
     for i in range(len(self.enemy_level)):
       for j in range(len(self.enemy_level[i])):
         if self.enemy_level[i][j] == 1:
-          angle = 270
+          angle = 0
           radius = 50 + random.randint(0, 20)
           arc_dir = 5
           if random.random() > .5:
@@ -247,12 +252,17 @@ class Game():
     """ animate enemies and check for collisions against themselves """
     if self.animation_delay_counter % 3 == 0:
       for enemy in self.sprite_groups["enemies"].sprites():
+        print(enemy.movement_style)
         enemy.old_x = enemy.rect.x
         enemy.old_y = enemy.rect.y
+        # here's how you debug better
         #print("enemy x,y cx,cy, angle:", enemy.rect.x, enemy.rect.y, enemy.centerx, enemy.centery, enemy.angle, enemy.collided, id(enemy))
         if not enemy.collided:
-          enemy.old_angle = enemy.angle
-          enemy.move_arc()
+          if enemy.movement_style == "arc":
+            enemy.old_angle = enemy.angle
+            enemy.move_arc()
+          elif enemy.movement_style == "random":
+            enemy.move_random()
           collisions = enemy.check_collisions(self.sprite_groups["enemies"])
           if collisions:
             enemy.collided = True
@@ -260,7 +270,6 @@ class Game():
             enemy.rect.y = enemy.old_y
             enemy.angle = enemy.old_angle
         elif enemy.collided:
-          #pdb.set_trace()
           enemy.old_centerx = enemy.centerx
           enemy.old_centery = enemy.centery
           enemy.move()
@@ -273,12 +282,18 @@ class Game():
             enemy.centery = enemy.old_centery
             # try another move direction
             enemy.moves.pop(0)
-            #print(enemy.moves, id(enemy))
             enemy.set_move_dir2()
           if not collisions:
-            #print("move:", enemy.rect.x, enemy.rect.y, id(enemy))
+            enemy.move_delta = 1
             enemy.collided = False
-        enemy.check_out_of_bounds(self.width, self.height, enemy.old_x, enemy.old_y)    
+        enemy.check_out_of_bounds(self.width, self.height)    
+        if self.time_now > enemy.next_movement_time:
+          enemy.next_movement_time = self.time_now + enemy.movement_timer
+          if random.random() > .5:
+            enemy.movement_style = "random"
+          else:
+            enemy.movement_style = "arc"
+
               
   def animate_enemy_bullets(self, player):
     """ create enemy bullets, move them, and check for collisions against player """
@@ -299,7 +314,7 @@ class Game():
         self.sprite_groups["enemy_bullets"].remove(bullet)
         player.hp -= 1
 
-  def animate_powerups(self):
+  def animate_powerups(self, player):
     for power_up in self.sprite_groups["power_ups"]:
       power_up.move(power_up.speed)
       collisions = pygame.sprite.spritecollide(

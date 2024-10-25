@@ -136,28 +136,25 @@ class Enemy(pygame.sprite.Sprite):
     self.arc_dir = arc_dir
     self.radius_inc = 1
     self.collided = False
-    self.movement_style = "random"
+    self.movement_style = "arc"
     self.movement_timer = 5000
+    self.next_movement_time = 0
     self.move_incrementally = False
     self.moves = ["up", "down", "left", "right"]
+    self.move_delta = 1
     self.set_move_dir2()
     self.centerx = None
     self.centery = None
     self.old_centerx = None
     self.old_centery = None
     self.set_center()
-    self.init_xy()
 
   def reset_moves(self):
     self.moves = ["up", "down", "left", "right"]
 
-  def init_xy(self):
-    angle = math.radians(self.angle)
-    self.rect.y = self.centery + (math.sin(angle) * self.radius)
-    self.rect.x = self.centerx + (math.cos(angle) * self.radius)
-
   def set_center(self):
-    angle = math.radians(self.angle)
+    # we add 270 degrees b/c trig
+    angle = math.radians(self.angle + 270)
     self.centery = self.rect.y + (self.radius * math.sin(angle))
     self.centerx = self.rect.x + (self.radius * math.cos(angle))
 
@@ -216,8 +213,6 @@ class Enemy(pygame.sprite.Sprite):
 
   def move_arc(self):
     angle = math.radians(self.angle)
-    self.rect.y = self.centery + (math.sin(angle) * self.radius)
-    self.rect.x = self.centerx + (math.cos(angle) * self.radius)
     self.angle += self.arc_dir
     self.radius += self.radius_inc
     if self.radius > 200:
@@ -228,6 +223,8 @@ class Enemy(pygame.sprite.Sprite):
       self.angle = 0
     if self.angle < 0:
       self.angle = 360
+    self.rect.x = self.centerx + (math.sin(angle) * self.radius)
+    self.rect.y = self.centery + (math.cos(angle) * self.radius)
 
   def set_move_dir(self):
     x_dist = self.rect.x - self.old_arc_x
@@ -249,18 +246,21 @@ class Enemy(pygame.sprite.Sprite):
 
   def set_move_dir2(self):
     if not self.moves:
+      print("resetting moves")
       self.reset_moves()
+      print(self.moves)
+      #self.move_delta +=1
     if self.moves[0] == "left":
-      self.x_dir = -1
+      self.x_dir = -self.move_delta
       self.y_dir = 0
     elif self.moves[0] == "right": 
-      self.x_dir = 1
+      self.x_dir = self.move_delta
       self.y_dir = 0
     elif self.moves[0] == "up":
-      self.y_dir = -1
+      self.y_dir = -self.move_delta
       self.x_dir = 0
     elif self.moves[0] == "down":
-      self.y_dir = 1
+      self.y_dir = self.move_delta
       self.x_dir = 0
 
   def check_collisions(self, sprite_group):
@@ -272,11 +272,15 @@ class Enemy(pygame.sprite.Sprite):
     collisions.remove(self)
     return collisions
 
-  def check_out_of_bounds(self, width, height, prev_x, prev_y):
-    if self.rect.x + self.image.get_width() > width or self.rect.x < 0:
-      self.rect.x = prev_x
-    if self.rect.y + self.image.get_height() > height or self.rect.y < 0:
-      self.rect.y = prev_y
+  def check_out_of_bounds(self, width, height):
+    if self.rect.x + self.image.get_width() > width:
+      self.rect.x = width - self.image.get_width()
+    if self.rect.x < 0:
+      self.rect.x = 1
+    if self.rect.y + self.image.get_height() > height:
+      self.rect.y = height - self.image.get_height()
+    if self.rect.y < 0:
+      self.rect.y = 1
 
 class EnemyBullet(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
