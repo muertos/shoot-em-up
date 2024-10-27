@@ -234,25 +234,13 @@ class ArcEnemy(Enemy):
 
   def check_out_of_bounds(self, width, height):
     if self.rect.x + self.image.get_width() > width:
-      print(self.rect.x, self.rect.y, self.centerx, self.centery, self.angle, self.arc_dir, id(self))
       self.rect.x = width - self.image.get_width()
-      self.centerx += self.prev_x - self.rect.x
-      self.arc_dir = -self.arc_dir
     if self.rect.x < 0:
-      print(self.rect.x, self.rect.y, self.centerx, self.centery, self.angle, self.arc_dir, id(self))
       self.rect.x = 1
-      self.centerx += self.rect.x - self.prev_x
-      self.arc_dir = -self.arc_dir
     if self.rect.y + self.image.get_height() > height:
-      print(self.rect.x, self.rect.y, self.centerx, self.centery, self.angle, self.arc_dir, id(self))
       self.rect.y = height - self.image.get_height()
-      self.centery += self.prev_y - self.rect.y
-      self.arc_dir = -self.arc_dir
     if self.rect.y < 0:
-      print(self.rect.x, self.rect.y, self.centerx, self.centery, self.angle, self.arc_dir, id(self))
       self.rect.y = 1
-      self.centery += self.rect.y - self.prev_y
-      self.arc_dir = -self.arc_dir
 
   def draw(self, game):
     self.set_prev_position()
@@ -274,10 +262,6 @@ class ArcEnemy(Enemy):
         self.reset_center()
         # try another move direction
         self.moves.pop(0)
-        if not self.moves:
-          self.reset_moves()
-        if self.moves[0] == collisions[0].moves[0]:
-          self.moves.pop(0)
         self.set_move_dir()
       if not collisions:
         self.move_delta = 1
@@ -323,6 +307,7 @@ class DartingEnemy(Enemy):
       if collisions:
         self.reset_position()
         # try another move direction
+        self.moves.pop(0)
         self.set_move_dir()
       if not collisions:
         self.collided = False
