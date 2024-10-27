@@ -113,67 +113,242 @@ class SpeedPowerUp(pygame.sprite.Sprite):
     self.rect.y += direction
 
 class Enemy(pygame.sprite.Sprite):
-  def __init__(self, x, y, angle, radius, arc_dir, sprite_group) -> None:
+  def __init__(self, x, y, sprite_group) -> None:
     # adds Enemy sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('enemy_ship.png')
-    self.mask = pygame.mask.from_surface(self.image)
-    #self.image = self.mask.to_surface()
-    self.rect.x = x
-    self.rect.y = y
-    self.old_x = None
-    self.old_y = None
-    self.old_angle = None
+    self.prev_x = None
+    self.prev_y = None
     self.x_dir = 0
     self.y_dir = 0
     self.speed = 1
     self.move_count = 0
+    self.move_delta = 1
     self.shooting = True
     self.next_bullet_time = 0
     self.hp = 3
-    self.radius = 70 
-    self.angle = angle
-    self.arc_dir = arc_dir
-    self.radius_inc = 1
     self.collided = False
-    self.movement_style = "arc"
-    self.movement_timer = 5000
-    self.next_movement_time = 0
-    self.move_incrementally = False
     self.moves = ["up", "down", "left", "right"]
-    self.move_delta = 1
-    self.set_move_dir2()
-    self.centerx = None
-    self.centery = None
-    self.old_centerx = None
-    self.old_centery = None
-    self.set_center()
-
-  def reset_moves(self):
-    self.moves = ["up", "down", "left", "right"]
-
-  def set_center(self):
-    # we add 270 degrees b/c trig
-    angle = math.radians(self.angle + 270)
-    self.centery = self.rect.y + (self.radius * math.sin(angle))
-    self.centerx = self.rect.x + (self.radius * math.cos(angle))
-
-  def update_center(self):
-    self.centerx += self.x_dir
-    self.centery += self.y_dir
-
-  def move_back_and_forth(self):
-    self.rect.x += self.speed
-    self.move_count +=1
-    if self.move_count > 80:
-      self.speed = -self.speed
-      self.move_count = 0
 
   def move(self):
     self.rect.x += self.x_dir
     self.rect.y += self.y_dir
 
-  def set_move_direction(self):
+  def set_prev_position(self):
+    self.prev_x = self.rect.x
+    self.prev_y = self.rect.y
+  
+  def reset_position(self):
+    self.rect.x = self.prev_x
+    self.rect.y = self.prev_y
+
+  def reset_moves(self):
+    self.moves = ["up", "down", "left", "right"]
+
+  def set_move_dir(self):
+    if not self.moves:
+      self.reset_moves()
+      self.move_delta +=1
+    if self.moves[0] == "left":
+      self.x_dir = -self.move_delta
+      self.y_dir = 0
+    elif self.moves[0] == "right": 
+      self.x_dir = self.move_delta
+      self.y_dir = 0
+    elif self.moves[0] == "up":
+      self.y_dir = -self.move_delta
+      self.x_dir = 0
+    elif self.moves[0] == "down":
+      self.y_dir = self.move_delta
+      self.x_dir = 0
+
+  def check_collisions(self, sprite_group):
+    collisions = pygame.sprite.spritecollide(
+                   self,
+                   sprite_group,
+                   False,
+                   collided=pygame.sprite.collide_mask)
+    collisions.remove(self)
+    return collisions
+
+class ArcEnemy(Enemy):
+  def __init__(self, x, y, sprite_group) -> None:
+    Enemy.__init__(self, x, y, sprite_group)
+    self.image, self.rect = load_png('enemy_ship_arc.png')
+    self.mask = pygame.mask.from_surface(self.image)
+    self.rect.x = x
+    self.rect.y = y
+    self.centerx = None
+    self.centery = None
+    self.prev_centerx = None
+    self.prev_centery = None
+    self.prev_angle = None
+    self.radius = 50 
+    self.angle = 180
+    self.arc_dir = 5
+    self.radius_inc = 1
+    self.hp = 3
+    self.set_center()
+    self.set_move_dir()
+
+  def set_prev_center(self):
+    self.prev_centerx = self.rect.x
+    self.prev_centery = self.rect.y
+  
+  def reset_center(self):
+    self.rect.x = self.prev_centerx
+    self.rect.y = self.prev_centery
+
+  def set_center(self):
+    # we add 180 degrees b/c trig
+    angle = math.radians(self.angle + 180)
+    self.centery = self.rect.y - (self.radius * math.sin(angle))
+    self.centerx = self.rect.x + (self.radius * math.cos(angle))
+
+  def set_angle(self):
+    side = abs(self.centery - self.rect.y)
+    if self.angle <= 90:
+      self.angle = math.degrees(math.asin(side / self.radius))
+    if self.angle <= 180 and self.angle > 90:
+      self.angle = 180 - math.degrees(math.asin(side / self.radius))
+    if self.angle <= 270 and self.angle > 180:
+      self.angle = 270 - math.degrees(math.acos(side / self.radius))
+    if self.angle <= 360 and self.angle > 270:
+      self.angle = 360 - math.degrees(math.acos(side / self.radius))
+
+  def move_center(self):
+    self.centerx += self.x_dir
+    self.centery += self.y_dir
+
+  def move_arc(self):
+    angle = math.radians(self.angle)
+    self.angle += self.arc_dir
+    if self.radius > 200:
+      self.radius_inc = -1
+    if self.radius < 1:
+      self.radius_inc = 1
+    if self.angle < 180 or self.angle > 360:
+      self.arc_dir = -self.arc_dir
+    # pygame y coordinates increment with down direction
+    self.rect.y = self.centery - (math.sin(angle) * self.radius)
+    self.rect.x = self.centerx + (math.cos(angle) * self.radius)
+
+  def check_out_of_bounds(self, width, height):
+    if self.rect.x + self.image.get_width() > width:
+      print(self.rect.x, self.rect.y, self.centerx, self.centery, self.angle, self.arc_dir, id(self))
+      self.rect.x = width - self.image.get_width()
+      self.centerx += self.prev_x - self.rect.x
+      self.arc_dir = -self.arc_dir
+    if self.rect.x < 0:
+      print(self.rect.x, self.rect.y, self.centerx, self.centery, self.angle, self.arc_dir, id(self))
+      self.rect.x = 1
+      self.centerx += self.rect.x - self.prev_x
+      self.arc_dir = -self.arc_dir
+    if self.rect.y + self.image.get_height() > height:
+      print(self.rect.x, self.rect.y, self.centerx, self.centery, self.angle, self.arc_dir, id(self))
+      self.rect.y = height - self.image.get_height()
+      self.centery += self.prev_y - self.rect.y
+      self.arc_dir = -self.arc_dir
+    if self.rect.y < 0:
+      print(self.rect.x, self.rect.y, self.centerx, self.centery, self.angle, self.arc_dir, id(self))
+      self.rect.y = 1
+      self.centery += self.rect.y - self.prev_y
+      self.arc_dir = -self.arc_dir
+
+  def draw(self, game):
+    self.set_prev_position()
+    if not self.collided:
+      self.prev_angle = self.angle
+      self.move_arc()
+      collisions = self.check_collisions(game.sprite_groups["enemies"])
+      if collisions:
+        self.collided = True
+        self.reset_position()
+        self.angle = self.prev_angle
+    elif self.collided:
+      self.set_prev_center()
+      self.move()
+      self.move_center()
+      collisions = self.check_collisions(game.sprite_groups["enemies"])
+      if collisions:
+        self.reset_position()
+        self.reset_center()
+        # try another move direction
+        self.moves.pop(0)
+        if not self.moves:
+          self.reset_moves()
+        if self.moves[0] == collisions[0].moves[0]:
+          self.moves.pop(0)
+        self.set_move_dir()
+      if not collisions:
+        self.move_delta = 1
+        self.collided = False
+    self.check_out_of_bounds(game.width, game.height)    
+
+class DartingEnemy(Enemy):
+  def __init__(self, x, y, sprite_group) -> None:
+    Enemy.__init__(self, x, y, sprite_group)
+    self.image, self.rect = load_png('enemy_ship_dart.png')
+    self.mask = pygame.mask.from_surface(self.image)
+    self.rect.x = x
+    self.rect.y = y
+    self.accel = 14
+  
+  def move_dart(self):
+    # accelerate in a direction, then pause for a lil bit
+    self.rect.x += self.x_dir * self.speed * self.accel
+    self.rect.y += self.y_dir * self.speed * self.accel
+    if self.accel > 1:
+      self.accel -= 1
+    self.move_count += 1
+    if self.accel < 2 and self.move_count > 15:
+      self.accel = 1 
+    if self.accel == 1 and self.move_count > 25:
+      self.accel = 0
+    if self.move_count > 40:
+      self.accel = 14
+      self.move_count = 0
+      self.set_move_direction_random()
+
+  def draw(self, game):
+    self.set_prev_position()
+    if not self.collided:
+      self.move_dart()
+      collisions = self.check_collisions(game.sprite_groups["enemies"])
+      if collisions:
+        self.collided = True
+        self.reset_position()
+    elif self.collided:
+      self.move()
+      collisions = self.check_collisions(game.sprite_groups["enemies"])
+      if collisions:
+        self.reset_position()
+        # try another move direction
+        self.set_move_dir()
+      if not collisions:
+        self.collided = False
+    self.check_out_of_bounds(game.width, game.height)
+
+  def check_out_of_bounds(self, width, height):
+    if self.rect.x + self.image.get_width() > width:
+      self.rect.x = width - self.image.get_width()
+      self.x_dir = -self.x_dir
+    if self.rect.x < 0:
+      self.rect.x = 1
+      self.x_dir = -self.x_dir
+    if self.rect.y + self.image.get_height() > height:
+      self.rect.y = height - self.image.get_height()
+      self.y_dir = -self.y_dir
+    if self.rect.y < 0:
+      self.rect.y = 1
+      self.y_dir = -self.y_dir
+  
+  #def set_move_dir(self):
+  #  if self.x_dir > 0:
+  #    self.x_dir = -self.x_dir
+  #  if self.y_dir > 0:
+  #    self.y_dir = -self.y_dir
+
+  def set_move_direction_random(self):
     choice = random.randrange(0,8)
     if choice == 0:
       self.x_dir = 1
@@ -200,88 +375,6 @@ class Enemy(pygame.sprite.Sprite):
       self.x_dir = 1
       self.y_dir = -1
 
-  def move_random(self):
-    self.move()
-    self.move_count += 1
-    if self.move_count > 12:
-      self.set_move_direction()
-      self.move_count = 0
-
-  def reverse_direction(self):
-    self.x_dir = -self.x_dir
-    self.y_dir = -self.y_dir
-
-  def move_arc(self):
-    angle = math.radians(self.angle)
-    self.angle += self.arc_dir
-    self.radius += self.radius_inc
-    if self.radius > 200:
-      self.radius_inc = -1
-    if self.radius < 1:
-      self.radius_inc = 1
-    if self.angle > 360:
-      self.angle = 0
-    if self.angle < 0:
-      self.angle = 360
-    self.rect.x = self.centerx + (math.sin(angle) * self.radius)
-    self.rect.y = self.centery + (math.cos(angle) * self.radius)
-
-  def set_move_dir(self):
-    x_dist = self.rect.x - self.old_arc_x
-    y_dist = self.rect.y - self.old_arc_y
-    if abs(x_dist) >= abs(y_dist):
-      if x_dist >= 0:
-        self.x_dir = -1
-        self.y_dir = 0
-      if x_dist < 0:
-        self.x_dir = 1
-        self.y_dir = 0
-    else:
-      if y_dist >= 0:
-        self.y_dir = -1
-        self.x_dir = 0
-      if y_dist < 0:
-        self.y_dir = 1
-        self.x_dir = 0
-
-  def set_move_dir2(self):
-    if not self.moves:
-      print("resetting moves")
-      self.reset_moves()
-      print(self.moves)
-      #self.move_delta +=1
-    if self.moves[0] == "left":
-      self.x_dir = -self.move_delta
-      self.y_dir = 0
-    elif self.moves[0] == "right": 
-      self.x_dir = self.move_delta
-      self.y_dir = 0
-    elif self.moves[0] == "up":
-      self.y_dir = -self.move_delta
-      self.x_dir = 0
-    elif self.moves[0] == "down":
-      self.y_dir = self.move_delta
-      self.x_dir = 0
-
-  def check_collisions(self, sprite_group):
-    collisions = pygame.sprite.spritecollide(
-                   self,
-                   sprite_group,
-                   False,
-                   collided=pygame.sprite.collide_mask)
-    collisions.remove(self)
-    return collisions
-
-  def check_out_of_bounds(self, width, height):
-    if self.rect.x + self.image.get_width() > width:
-      self.rect.x = width - self.image.get_width()
-    if self.rect.x < 0:
-      self.rect.x = 1
-    if self.rect.y + self.image.get_height() > height:
-      self.rect.y = height - self.image.get_height()
-    if self.rect.y < 0:
-      self.rect.y = 1
-
 class EnemyBullet(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
     # adds Enemy bullet sprite to sprite_group
@@ -299,8 +392,6 @@ class Asteroid(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group, rotated_sprites) -> None:
     pygame.sprite.Sprite.__init__(self, sprite_group)
     self.image, self.rect = load_png('asteroid.png')
-    #self.orig_rect = self.rect
-    #self.orig_image = self.image
     self.mask = pygame.mask.from_surface(self.image)
     self.centerx = x
     self.centery = y
