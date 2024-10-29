@@ -285,3 +285,14 @@ class EnemyBullet(pygame.sprite.Sprite):
 
   def move(self, direction):
     self.rect.y += direction
+
+  def draw(self, game, player):
+    self.move(self.speed)
+    collisions = pygame.sprite.spritecollide(
+                   self,
+                   game.sprite_groups["player"],
+                   False,
+                   collided=pygame.sprite.collide_mask)
+    if collisions:
+      game.sprite_groups["enemy_bullets"].remove(self)
+      player.hp -= 1

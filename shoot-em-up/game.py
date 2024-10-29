@@ -1,5 +1,4 @@
 import pygame
-import random
 import sys
 
 from pygame.locals import *
@@ -190,48 +189,13 @@ class Game():
   def move_asteroids(self, player):
     if self.animation_delay_counter % 2 == 0:
       for asteroid in self.sprite_groups["asteroids"].sprites():
-        asteroid.rotation_counter += 1
-        asteroid.move()
-        asteroid.next_sprite()
-        if asteroid.rect.y > self.height:
-          self.sprite_groups["asteroids"].remove(asteroid)
-        collisions = pygame.sprite.groupcollide(
-                       self.sprite_groups["asteroids"],
-                       self.sprite_groups["player"],
-                       False,
-                       False,
-                       collided=pygame.sprite.collide_mask)
-        for collided_asteroid in collisions:
-          if not collided_asteroid.collided:
-            player.hp -= 3
-          collided_asteroid.collided = True
-
+        asteroid.draw(self, player)
+        
   def animate_bullets(self):
     """ animate player bullets and check for collisions against enemies """
     for bullet in self.sprite_groups["bullets"].sprites():
-      bullet.move(bullet.speed)
-      collisions = pygame.sprite.spritecollide(
-                     bullet,
-                     self.sprite_groups["enemies"],
-                     False,
-                     collided=pygame.sprite.collide_mask)
-      for enemy in collisions:
-        enemy.hit_time_expiry = self.time_now + enemy.hit_animation_delay
-        enemy.hp -= 1
-        self.sprite_groups["bullets"].remove(bullet)
-        if enemy.hp == 0:
-          # 1 in 10 chance to spawn power up
-          if random.random() < 0.1:
-            power_up = SpeedPowerUp(
-                         enemy.rect.x,
-                         enemy.rect.y,
-                         self.sprite_groups["power_ups"])
-          self.sprite_groups["enemies"].remove(enemy)
-        if not self.sprite_groups["enemies"]:
-          self.win = True
-        if bullet.rect.y < 0:
-          self.sprite_groups["bullets"].remove(bullet)
-
+      bullet.draw(self)
+      
   def animate_enemies(self):
     """ animate enemies and check for collisions against themselves """
     if self.animation_delay_counter % 3 == 0:
@@ -247,31 +211,12 @@ class Game():
         enemy.next_bullet_time = self.time_now + enemy_bullet.delay
 
     for bullet in self.sprite_groups["enemy_bullets"].sprites():
-      bullet.move(bullet.speed)
-      collisions = pygame.sprite.spritecollide(
-                     bullet,
-                     self.sprite_groups["player"],
-                     False,
-                     collided=pygame.sprite.collide_mask)
-      if collisions:
-        self.sprite_groups["enemy_bullets"].remove(bullet)
-        player.hp -= 1
+      bullet.draw(self, player)
 
   def animate_powerups(self, player):
     for power_up in self.sprite_groups["power_ups"]:
-      power_up.move(power_up.speed)
-      collisions = pygame.sprite.spritecollide(
-                     power_up,
-                     self.sprite_groups["player"],
-                     False,
-                     collided=pygame.sprite.collide_mask)
-      if collisions:
-        self.sprite_groups["power_ups"].remove(power_up)
-        player.bullet_delay = 50
-        player.speed_power_up_expiry = self.time_now + player.speed_power_up_duration
-      if power_up.rect.y > self.height:
-        self.sprite_groups["power_ups"].remove(power_up)
-
+      power_up.draw(self, player)
+      
   def check_powerup_expiry(self, player):
     if self.time_now > player.speed_power_up_expiry:
       player.speed_power_up_expiry = 0

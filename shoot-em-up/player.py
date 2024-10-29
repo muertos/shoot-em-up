@@ -1,4 +1,6 @@
 import pygame
+import random
+
 from utility_functions import load_png
 
 def create_player(group, game):
@@ -68,6 +70,30 @@ class Bullet(pygame.sprite.Sprite):
   def move(self, direction):
     self.rect.y += direction
 
+  def draw(self, game):
+    self.move(self.speed)
+    collisions = pygame.sprite.spritecollide(
+                   self,
+                   game.sprite_groups["enemies"],
+                   False,
+                   collided=pygame.sprite.collide_mask)
+    for enemy in collisions:
+      enemy.hit_time_expiry = game.time_now + enemy.hit_animation_delay
+      enemy.hp -= 1
+      game.sprite_groups["bullets"].remove(self)
+      if enemy.hp == 0:
+        # 1 in 10 chance to spawn power up
+        if random.random() < 0.1:
+          power_up = SpeedPowerUp(
+                       enemy.rect.x,
+                       enemy.rect.y,
+                       game.sprite_groups["power_ups"])
+        game.sprite_groups["enemies"].remove(enemy)
+      if not game.sprite_groups["enemies"]:
+        game.win = True
+      if self.rect.y < 0:
+        game.sprite_groups["bullets"].remove(self)
+
 class SpeedPowerUp(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
     pygame.sprite.Sprite.__init__(self, sprite_group)
@@ -79,3 +105,17 @@ class SpeedPowerUp(pygame.sprite.Sprite):
 
   def move(self, direction):
     self.rect.y += direction
+
+  def draw(self, game, player):
+    self.move(self.speed)
+    collisions = pygame.sprite.spritecollide(
+                     self,
+                     game.sprite_groups["player"],
+                     False,
+                     collided=pygame.sprite.collide_mask)
+    if collisions:
+      game.sprite_groups["power_ups"].remove(self)
+      player.bullet_delay = 50
+      player.speed_power_up_expiry = game.time_now + player.speed_power_up_duration
+    if self.rect.y > game.height:
+      game.sprite_groups["power_ups"].remove(self)

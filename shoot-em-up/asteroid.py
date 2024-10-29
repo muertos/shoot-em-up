@@ -27,3 +27,20 @@ class Asteroid(pygame.sprite.Sprite):
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.centerx = self.centerx
     self.rect.centery = self.centery
+
+  def draw(self, game, player):
+    self.rotation_counter += 1
+    self.move()
+    self.next_sprite()
+    if self.rect.y > game.height:
+      game.sprite_groups["asteroids"].remove(self)
+    collisions = pygame.sprite.groupcollide(
+                   game.sprite_groups["asteroids"],
+                   game.sprite_groups["player"],
+                   False,
+                   False,
+                   collided=pygame.sprite.collide_mask)
+    for collided_asteroid in collisions:
+      if not collided_asteroid.collided:
+        player.hp -= 3
+      collided_asteroid.collided = True
