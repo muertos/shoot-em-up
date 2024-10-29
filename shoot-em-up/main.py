@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
-from game_objects import *
-import copy
+import pygame
+
+from game import Game
+from stars import Stars
+from player import Player, create_player
+from utility_functions import generate_sprite_rotations
 
 SCREEN_WIDTH = 800 * 1.5
 SCREEN_HEIGHT = 600 * 1.5
@@ -37,6 +41,7 @@ def main():
     game.screen.fill(game.bg_color)
     stars.draw()
     game.draw_sprites()
+    game.reset_animate_hit()
     player.draw_hp(game)
     game.check_state()
     pygame.display.flip()

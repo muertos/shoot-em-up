@@ -1,116 +1,14 @@
-import pygame, random, sys, os, math
-from pygame.locals import *
+import math
+import pygame
+import random
 
-def load_png(name):
-  """ load image and return image object """
-  fullname = os.path.join('data', name)
-  try:
-    image = pygame.image.load(fullname)
-    if image.get_alpha is None:
-      image = image.convert()
-    else:
-      image = image.convert_alpha()
-  except pygame.error as message:
-    print('Cannot load image:', fullname)
-    raise SystemExit(message)
-  return image, image.get_rect()
-
-def create_player(group, game):
-  player_img = pygame.image.load('data/ship.png')
-  return Player((game.width / 2) - (player_img.get_width() / 2),
-                 game.height - player_img.get_height(),
-                 group)
-
-def create_bullet(player, delay, bullet_group):
-  bullet_img = pygame.image.load('data/bullet.png')
-  return Bullet(player.rect.x + (player.image.get_width() / 2) - (bullet_img.get_width() / 2),
-                player.rect.y,
-                delay,
-                bullet_group)
-
-def create_double_bullet(player, delay, bullet_group):
-  bullet_img = pygame.image.load('data/bullet.png')
-  return (Bullet(player.rect.x - (bullet_img.get_width() / 2),
-                player.rect.y,
-                delay,
-                bullet_group),
-         Bullet(player.rect.x + (player.image.get_width()) - (bullet_img.get_width() / 2),
-                player.rect.y,
-                delay,
-                bullet_group))
+from utility_functions import load_png
 
 def create_enemy_bullet(enemy, enemy_bullet_group):
   enemy_bullet_img = pygame.image.load('data/enemy_bullet.png')
   return EnemyBullet(enemy.rect.x + enemy.image.get_width() / 2 - enemy_bullet_img.get_width() / 2,
                      enemy.rect.y + enemy_bullet_img.get_height(),
                      enemy_bullet_group)
-
-def generate_sprite_rotations(angle, image):
-  # rotate a sprite 360 degrees, return list of rotated sprites
-  image, orig_rect = load_png(image)
-  rotated_sprites = []
-  current_angle = 0.0
-  for loop in range(0, int(360.0 / angle)):
-    current_angle = current_angle + angle
-    rotated_img = pygame.transform.rotate(image, current_angle)
-    rotated_rect = rotated_img.get_rect(center=orig_rect.center)
-    rotated_sprites.append((rotated_img, rotated_rect))
-  return rotated_sprites
-
-class Player(pygame.sprite.Sprite):
-  def __init__(self, x, y, sprite_group) -> None:
-    pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('ship.png')
-    self.mask = pygame.mask.from_surface(self.image)
-    self.rect.x = x
-    self.rect.y = y
-    self.speed = 5
-    # used as part of bullet delay calculation
-    self.next_bullet_time = 0
-    self.bullet_delay = 200
-    self.double_bullet_delay = 50
-    self.speed_power_up_duration = 5000
-    self.speed_power_up_expiry = 0
-    self.hp = 5
-
-  def move(self, x_direction, y_direction):
-    self.rect.x += x_direction
-    self.rect.y += y_direction
-
-  def draw_hp(self, game):
-    for i in range(0, self.hp):
-      game.screen.blit(
-        game.draw_text(
-          "*",
-          (0,200,0), 50),
-          (i*15, game.height - 20))
-
-class Bullet(pygame.sprite.Sprite):
-  def __init__(self, x, y, delay, sprite_group) -> None:
-    # adds Bullet sprite to sprite_group
-    pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('bullet.png')
-    # create masks, for pixel perfect collision detection
-    self.mask = pygame.mask.from_surface(self.image)
-    self.rect.x = x
-    self.rect.y = y
-    self.delay = delay
-    self.speed = -8
-
-  def move(self, direction):
-    self.rect.y += direction
-
-class SpeedPowerUp(pygame.sprite.Sprite):
-  def __init__(self, x, y, sprite_group) -> None:
-    pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('speed_power_up.png')
-    self.mask = pygame.mask.from_surface(self.image)
-    self.rect.x = x
-    self.rect.y = y
-    self.speed = 1
-
-  def move(self, direction):
-    self.rect.y += direction
 
 class Enemy(pygame.sprite.Sprite):
   def __init__(self, x, y, sprite_group) -> None:
@@ -125,6 +23,8 @@ class Enemy(pygame.sprite.Sprite):
     self.move_delta = 1
     self.shooting = True
     self.next_bullet_time = 0
+    self.hit_animation_delay = 500
+    self.hit_time_expiry = 0
     self.hp = 3
     self.collided = False
     self.moves = ["up", "down", "left", "right"]
@@ -170,10 +70,22 @@ class Enemy(pygame.sprite.Sprite):
     collisions.remove(self)
     return collisions
 
+  def animate_hit(self, game):
+    """ create a blinking effect when hit """
+    if game.time_now < self.hit_time_expiry:
+      remainder = self.hit_time_expiry - game.time_now
+      if remainder % 3 == 0:
+        self.image = self.original_image
+      else:
+        self.image = self.mask.to_surface(setcolor=(0,0,0,0))
+    if game.time_now > self.hit_time_expiry:
+      self.image = self.original_image
+
 class ArcEnemy(Enemy):
   def __init__(self, x, y, sprite_group) -> None:
     Enemy.__init__(self, x, y, sprite_group)
     self.image, self.rect = load_png('enemy_ship_arc.png')
+    self.original_image = self.image
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.x = x
     self.rect.y = y
@@ -273,6 +185,7 @@ class DartingEnemy(Enemy):
     Enemy.__init__(self, x, y, sprite_group)
     self.image, self.rect = load_png('enemy_ship_dart.png')
     self.mask = pygame.mask.from_surface(self.image)
+    self.original_image = self.image
     self.rect.x = x
     self.rect.y = y
     self.accel = 14
@@ -372,29 +285,3 @@ class EnemyBullet(pygame.sprite.Sprite):
 
   def move(self, direction):
     self.rect.y += direction
-
-class Asteroid(pygame.sprite.Sprite):
-  def __init__(self, x, y, sprite_group, rotated_sprites) -> None:
-    pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('asteroid.png')
-    self.mask = pygame.mask.from_surface(self.image)
-    self.centerx = x
-    self.centery = y
-    self.speed = 1
-    # pre-load sprite rotations to not make the cpu work so hard
-    self.rotated_sprites = rotated_sprites
-    self.rotation_counter = 0
-    self.collided = False
-
-  def move(self):
-    self.centery += self.speed
-
-  def next_sprite(self):
-    # update mask?
-    if self.rotation_counter == len(self.rotated_sprites):
-      self.rotation_counter = 0
-    self.image = self.rotated_sprites[self.rotation_counter][0]
-    self.rect = self.rotated_sprites[self.rotation_counter][1]
-    self.mask = pygame.mask.from_surface(self.image)
-    self.rect.centerx = self.centerx
-    self.rect.centery = self.centery

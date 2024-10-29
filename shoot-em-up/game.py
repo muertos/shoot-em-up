@@ -1,7 +1,12 @@
-import pygame, random, sys, os, math
-from sprite_objects import *
+import pygame
+import random
+import sys
+
 from pygame.locals import *
-import pdb
+from asteroid import Asteroid
+from enemies import *
+from utility_functions import *
+from player import *
 
 class Game():
   def __init__(self, title, width, height, bg_color) -> None:
@@ -38,9 +43,9 @@ class Game():
     #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    #  [0,0,0,0,0,1,0,1,0,0,0,0,2,0,0,0,0,0,0],
-    #  [0,0,0,0,0,0,1,0,0,0,0,2,0,2,0,0,0,0,0],
-    #  [0,0,0,0,0,1,0,1,0,0,0,0,2,0,0,0,0,0,0]]
+    #  [0,0,0,0,0,1,0,1,0,0,0,0,1,0,0,0,0,0,0],
+    #  [0,0,0,0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0],
+    #  [0,0,0,0,0,1,0,1,0,0,0,0,1,0,0,0,0,0,0]]
 
     self.sprite_groups = {
       "bullets": pygame.sprite.Group(),
@@ -167,6 +172,10 @@ class Game():
     for sprite_group in self.sprite_groups:
       self.sprite_groups[sprite_group].draw(self.screen)
 
+  def reset_animate_hit(self):
+    for sprite in self.sprite_groups["enemies"]:
+      sprite.animate_hit(self)
+
   def spawn_asteroids(self, rotated_sprites):
     if self.time_now > self.next_asteroid_time:
       x = random.randrange(
@@ -207,6 +216,7 @@ class Game():
                      False,
                      collided=pygame.sprite.collide_mask)
       for enemy in collisions:
+        enemy.hit_time_expiry = self.time_now + enemy.hit_animation_delay
         enemy.hp -= 1
         self.sprite_groups["bullets"].remove(bullet)
         if enemy.hp == 0:
@@ -266,61 +276,3 @@ class Game():
     if self.time_now > player.speed_power_up_expiry:
       player.speed_power_up_expiry = 0
       player.bullet_delay = 200
-
-class Stars():
-  def __init__(self, game) -> None:
-    random.seed()
-    self.direction = "down"
-    self.stars = []
-    # count of stars per layer
-    self.layer_1 = 200
-    self.layer_2 = 400
-    self.layer_3 = 800
-    self.num_stars = self.layer_1 + self.layer_2 + self.layer_3
-    self.white = 255, 255, 255
-    self.lightblue = 200, 200, 255
-    self.lightred = 255, 200, 200
-    self.lightyellow = 255, 200, 255
-    self.game = game
-    self.init(self.game.screen)
-    self.init_layer_1()
-
-  def init(self, screen):
-    for loop in range(0, self.num_stars):
-      star = [random.randrange(0, int(screen.get_width() - 1)),
-              random.randrange(0, int(screen.get_height() - 1))]
-      self.stars.append(star);
-
-  def move(self, start, end):
-    for loop in range(start, end):
-      if (self.direction == "down"):
-        if (self.stars[loop][1] != self.game.height - 1):
-            self.stars[loop][1] = self.stars[loop][1] + 1
-        else:
-          self.stars[loop][0] = random.randrange(0, int(self.game.width - 1))
-          self.stars[loop][1] = 1
-
-  def init_layer_1(self):
-    for loop in range(0, self.layer_1):
-      self.game.screen.set_at(self.stars[loop], self.white)
-
-  def move_layers(self):
-    self.move(
-      0,
-      self.layer_1)
-    if (self.game.animation_delay_counter % 2 == 0):
-      self.move(
-        self.layer_1 + 1,
-        self.layer_1 + self.layer_2)
-    if (self.game.animation_delay_counter % 5 == 0):
-      self.move(
-        self.layer_1 + self.layer_2 + 1,
-        self.num_stars)
-
-  def draw(self):
-    for loop in range(0, self.layer_1):
-      self.game.screen.set_at(self.stars[loop], self.lightblue)
-    for loop in range(self.layer_1 + 1, self.layer_1 + self.layer_2):
-      self.game.screen.set_at(self.stars[loop], self.lightred)
-    for loop in range(self.layer_1 + self.layer_2 + 1, self.num_stars):
-      self.game.screen.set_at(self.stars[loop], self.lightyellow)
