@@ -34,7 +34,17 @@ class Player(pygame.sprite.Sprite):
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.x = x
     self.rect.y = y
-    self.speed = 5
+    self.x_direction = 0
+    self.y_direction = 0
+    self.speed = 3
+    self.original_speed = self.speed
+    # used for slowing the ship to a stop
+    self.accel = -5
+    # time ship takes to come to a stop in ms
+    self.accel_duration = 1000
+    # time in the future to stop acceleration
+    self.accel_stop_time = None
+    self.accelerating = False
     # used as part of bullet delay calculation
     self.next_bullet_time = 0
     self.bullet_delay = 200
@@ -43,9 +53,30 @@ class Player(pygame.sprite.Sprite):
     self.speed_power_up_expiry = 0
     self.hp = 5
 
-  def move(self, x_direction, y_direction):
-    self.rect.x += x_direction
-    self.rect.y += y_direction
+  def move(self, game):
+    prev_x = self.rect.x
+    prev_y = self.rect.y
+    self.rect.x += self.x_direction * self.speed
+    self.rect.y += self.y_direction * self.speed
+    if self.rect.x < 0:
+      self.rect.x = prev_x
+    if self.rect.x + self.image.get_width() > game.width:
+      self.rect.x = prev_x
+    if self.rect.y < 0:
+      self.rect.y = prev_y
+    if self.rect.y + self.image.get_height() > game.height:
+      self.rect.y = prev_y
+
+  def update_speed(self, game):
+    #if game.time_now < self.accel_stop_time:
+    if self.speed > 0:
+      frame_time = game.time_now - game.prev_time
+      self.speed = self.speed + self.accel * frame_time/1000
+    else:
+      self.accelerating = False
+      self.speed = self.original_speed
+      self.x_direction = 0
+      self.y_direction = 0
 
   def draw_hp(self, game):
     for i in range(0, self.hp):

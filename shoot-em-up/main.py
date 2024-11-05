@@ -25,10 +25,14 @@ def main():
                                'asteroid.png')
 
   while True:
+    game.prev_time = game.time_now
+    game.time_now = pygame.time.get_ticks()
     game.clock.tick(120)
     game.increment_animation_delay_counter()
-    game.time_now = pygame.time.get_ticks()
     game.handle_input(player)
+    if player.accelerating:
+      player.update_speed(game)
+    player.move(game)
     game.spawn_asteroids(rotated_asteroid_sprites)
     game.move_asteroids(player)
     game.animate_bullets()

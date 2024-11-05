@@ -20,6 +20,7 @@ class Game():
     self.init_time = pygame.time.get_ticks()
     self.next_asteroid_time = 0
     self.asteroid_img = pygame.image.load('data/asteroid.png')
+    self.prev_time = None
     self.time_now = pygame.time.get_ticks()
 
     self.enemy_level = [
@@ -124,36 +125,40 @@ class Game():
                        (self.width / 2 - 100, self.height / 2 - 30))
 
   def handle_input(self, player):
-    for event in pygame.event.get():
-      if event.type == QUIT:
-        return
-
     keys = pygame.key.get_pressed()
-    prev_player_x = player.rect.x
-    prev_player_y = player.rect.y
-
     if not self.lose:
+    #if not self.lose and event.type == KEYDOWN:
       if keys[pygame.K_LEFT]:
-        player.move(-player.speed, 0)
-        if player.rect.x < 0:
-          player.rect.x = prev_player_x
+        player.x_direction = -1
+        player.y_direction = 0
       if keys[pygame.K_RIGHT]:
-        player.move(player.speed, 0)
-        if player.rect.x + player.image.get_width() > self.width:
-          player.rect.x = prev_player_x
+        player.x_direction = 1
+        player.y_direction = 0
       if keys[pygame.K_UP]:
-        player.move(0, -player.speed)
-        if player.rect.y < 0:
-          player.rect.y = prev_player_y
+        player.y_direction = -1
+        player.x_direction = 0
       if keys[pygame.K_DOWN]:
-        player.move(0, player.speed)
-        if player.rect.y + player.image.get_height() > self.height:
-          player.rect.y = prev_player_y
+        player.y_direction = 1
+        player.x_direction = 0
       if keys[pygame.K_SPACE] and self.time_now > player.next_bullet_time:
         #bullet = create_bullet(player, player.bullet_delay, game.sprite_groups["bullets"])
         bullet1, bullet2 = create_double_bullet(player, player.double_bullet_delay, self.sprite_groups["bullets"])
         # introduce delay between bullets
         player.next_bullet_time = bullet1.delay + self.time_now
+      #player.move(self)
+
+    for event in pygame.event.get():
+      if event.type == KEYDOWN:
+        player.accelerating = False
+        player.accel_stop_time = 0
+        player.x_direction = 0
+        player.y_direction = 0
+        player.speed = player.original_speed
+      if event.type == KEYUP and (keys[pygame.K_UP] or keys[pygame.K_DOWN] or keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]):
+        player.accelerating = True
+        player.accel_stop_time = self.time_now + player.accel_duration
+      if event.type == QUIT:
+        return
 
     if keys[pygame.K_END] or keys[pygame.K_ESCAPE]:
       sys.exit(0)
