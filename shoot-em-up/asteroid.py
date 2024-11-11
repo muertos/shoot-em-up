@@ -22,8 +22,8 @@ class Asteroid(pygame.sprite.Sprite):
     # update mask?
     if self.rotation_counter == len(self.rotated_sprites):
       self.rotation_counter = 0
-    self.image = self.rotated_sprites[self.rotation_counter][0]
-    self.rect = self.rotated_sprites[self.rotation_counter][1]
+    self.image = self.rotated_sprites[self.rotation_counter]["image"]
+    self.rect = self.rotated_sprites[self.rotation_counter]["rect"]
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.centerx = self.centerx
     self.rect.centery = self.centery

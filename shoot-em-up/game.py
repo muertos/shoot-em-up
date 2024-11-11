@@ -22,6 +22,9 @@ class Game():
     self.asteroid_img = pygame.image.load('data/asteroid.png')
     self.prev_time = None
     self.time_now = pygame.time.get_ticks()
+    self.enemy_offset_y = None
+    self.intro_enemies = True
+    self.running = True
 
     self.enemy_level = [
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -43,9 +46,9 @@ class Game():
     #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    #  [0,0,0,0,0,1,0,1,0,0,0,0,1,0,0,0,0,0,0],
-    #  [0,0,0,0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0],
-    #  [0,0,0,0,0,1,0,1,0,0,0,0,1,0,0,0,0,0,0]]
+    #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #  [0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0]]
 
     self.sprite_groups = {
       "bullets": pygame.sprite.Group(),
@@ -60,6 +63,8 @@ class Game():
     self.make_level(self.sprite_groups["enemies"])
     pygame.init()
     self.intro()
+    self.calculate_enemy_offscreen_offset_y()
+    self.set_y_offset_enemies()
 
   def create_window(self):
     """ return screen and background objects """
@@ -125,44 +130,53 @@ class Game():
                        (self.width / 2 - 100, self.height / 2 - 30))
 
   def handle_input(self, player):
+    for event in pygame.event.get():
+      keys = pygame.key.get_pressed()
+      if event.type == QUIT:
+        return
+      if event.type == KEYDOWN:
+        # reset player acceleration and speed to original state
+        if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
+          player.reset()
+        if keys[pygame.K_LEFT]:
+          player.left_animation["key_down"] = True
+        if keys[pygame.K_RIGHT]:
+          player.right_animation["key_down"] = True
+      if event.type == KEYUP and player.moved_recently:
+        player.accelerating = True
+        player.moved_recently = False
+        player.left_animation["key_down"] = False
+        player.right_animation["key_down"] = False
+
+    # handle most keypresses outside of event loop
     keys = pygame.key.get_pressed()
     if not self.lose:
-    #if not self.lose and event.type == KEYDOWN:
       if keys[pygame.K_LEFT]:
         player.x_direction = -1
         player.y_direction = 0
+        player.left_animation["enabled"] = True
+        player.moved_recently = True
       if keys[pygame.K_RIGHT]:
         player.x_direction = 1
         player.y_direction = 0
+        player.right_animation["enabled"] = True
+        player.moved_recently = True
       if keys[pygame.K_UP]:
         player.y_direction = -1
         player.x_direction = 0
+        player.moved_recently = True
       if keys[pygame.K_DOWN]:
         player.y_direction = 1
         player.x_direction = 0
-      if keys[pygame.K_SPACE] and self.time_now > player.next_bullet_time:
+        player.moved_recently = True
+      if not self.intro_enemies and keys[pygame.K_SPACE] and self.time_now > player.next_bullet_time:
         #bullet = create_bullet(player, player.bullet_delay, game.sprite_groups["bullets"])
         bullet1, bullet2 = create_double_bullet(player, player.double_bullet_delay, self.sprite_groups["bullets"])
         # introduce delay between bullets
         player.next_bullet_time = bullet1.delay + self.time_now
-      #player.move(self)
-
-    for event in pygame.event.get():
-      if event.type == KEYDOWN:
-        player.accelerating = False
-        player.accel_stop_time = 0
-        player.x_direction = 0
-        player.y_direction = 0
-        player.speed = player.original_speed
-      if event.type == KEYUP and (keys[pygame.K_UP] or keys[pygame.K_DOWN] or keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]):
-        player.accelerating = True
-        player.accel_stop_time = self.time_now + player.accel_duration
-      if event.type == QUIT:
-        return
-
     if keys[pygame.K_END] or keys[pygame.K_ESCAPE]:
       sys.exit(0)
-
+      
   def increment_animation_delay_counter(self):
     self.animation_delay_counter += 1
     if self.animation_delay_counter == 500:
@@ -172,13 +186,35 @@ class Game():
     if player.hp < 1:
       self.lose = True
 
+  def calculate_enemy_offscreen_offset_y(self):
+    """ sets offscreen enemy position """
+    max_y = 0
+    for enemy in self.sprite_groups["enemies"]:
+      if enemy.rect.y > max_y:
+        max_y = enemy.rect.y
+        enemy_height = enemy.rect.height
+    self.enemy_offset_y = max_y + enemy_height
+
+  def set_y_offset_enemies(self):
+    for enemy in self.sprite_groups["enemies"]:
+      enemy.prev_y = enemy.rect.y
+      enemy.rect.y -= self.enemy_offset_y
+      enemy.y_dir = 1
+
+  def animate_enemies_intro(self):
+    for enemy in self.sprite_groups["enemies"]:
+      enemy.move()
+      if enemy.rect.y > enemy.prev_y:
+        enemy.rect.y = enemy.prev_y
+        self.intro_enemies = False
+
   def draw_sprites(self):
     for sprite_group in self.sprite_groups:
       self.sprite_groups[sprite_group].draw(self.screen)
 
-  def reset_animate_hit(self):
+  def enemy_blink_when_hit(self):
     for sprite in self.sprite_groups["enemies"]:
-      sprite.animate_hit(self)
+      sprite.blink_when_hit(self)
 
   def spawn_asteroids(self, rotated_sprites):
     if self.time_now > self.next_asteroid_time:
@@ -212,8 +248,21 @@ class Game():
     for enemy in self.sprite_groups["enemies"].sprites():
       if enemy.shooting and self.time_now > enemy.next_bullet_time:
         enemy_bullet = create_enemy_bullet(enemy, self.sprite_groups["enemy_bullets"])
-        self.sprite_groups["enemy_bullets"].add(enemy_bullet)
+        if type(enemy) is DartingEnemy:
+          enemy_bullet.speed = 5
+          delta_x = player.rect.centerx - enemy.rect.x
+          delta_y = player.rect.centery - enemy.rect.y
+          try:
+            angle = math.atan(delta_y / abs(delta_x))
+          except ZeroDivisionError:
+            print(delta_y, "/", abs(delta_x))
+          enemy_bullet.delta_y = enemy_bullet.speed * math.sin(angle)
+          if delta_x > 0:
+            enemy_bullet.delta_x = enemy_bullet.speed * math.cos(angle)
+          else:
+            enemy_bullet.delta_x = -(enemy_bullet.speed * math.cos(angle))
         enemy.next_bullet_time = self.time_now + enemy_bullet.delay
+        self.sprite_groups["enemy_bullets"].add(enemy_bullet)
 
     for bullet in self.sprite_groups["enemy_bullets"].sprites():
       bullet.draw(self, player)

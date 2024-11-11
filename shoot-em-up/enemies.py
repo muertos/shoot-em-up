@@ -70,7 +70,7 @@ class Enemy(pygame.sprite.Sprite):
     collisions.remove(self)
     return collisions
 
-  def animate_hit(self, game):
+  def blink_when_hit(self, game):
     """ create a blinking effect when hit """
     if game.time_now < self.hit_time_expiry:
       remainder = self.hit_time_expiry - game.time_now
@@ -149,8 +149,8 @@ class ArcEnemy(Enemy):
       self.rect.x = width - self.image.get_width()
     if self.rect.x < 0:
       self.rect.x = 1
-    if self.rect.y + self.image.get_height() > height:
-      self.rect.y = height - self.image.get_height()
+    if self.rect.y + self.image.get_height() > height / 2:
+      self.rect.y = height / 2 - self.image.get_height()
     if self.rect.y < 0:
       self.rect.y = 1
 
@@ -233,8 +233,8 @@ class DartingEnemy(Enemy):
     if self.rect.x < 0:
       self.rect.x = 1
       self.x_dir = -self.x_dir
-    if self.rect.y + self.image.get_height() > height:
-      self.rect.y = height - self.image.get_height()
+    if self.rect.y + self.image.get_height() > height / 2:
+      self.rect.y = height / 2 - self.image.get_height()
       self.y_dir = -self.y_dir
     if self.rect.y < 0:
       self.rect.y = 1
@@ -280,19 +280,26 @@ class EnemyBullet(pygame.sprite.Sprite):
     self.image, self.rect = load_png('enemy_bullet.png')
     self.rect.x = x
     self.rect.y = y
-    self.speed = 1.5
+    # slope toward player
+    self.delta_x = 0
+    self.delta_y = 1
+    self.travel_dist_x = 0
+    self.travel_dist_y = 0
+    self.speed = 2
     self.delay = random.randrange(2500,3500)
 
   def move(self, direction):
-    self.rect.y += direction
-
+    self.rect.x += self.delta_x
+    self.rect.y += self.delta_y
+    
   def draw(self, game, player):
     self.move(self.speed)
     collisions = pygame.sprite.spritecollide(
-                   self,
-                   game.sprite_groups["player"],
-                   False,
-                   collided=pygame.sprite.collide_mask)
+      self,
+      game.sprite_groups["player"],
+      False,
+      collided=pygame.sprite.collide_mask)
     if collisions:
+      player.hit_time_expiry = game.time_now + player.hit_animation_delay
       game.sprite_groups["enemy_bullets"].remove(self)
       player.hp -= 1
