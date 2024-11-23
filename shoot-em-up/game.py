@@ -34,9 +34,9 @@ class Game():
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,2,0,0,0,1,0,0,0,1,0,0,0,2,0,0,0,1,0,0,0,1,0,0,0,2,0],
-      [2,0,2,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,2,0,2],
-      [0,2,0,0,0,1,0,0,0,1,0,0,0,2,0,0,0,1,0,0,0,1,0,0,0,2,0]
+      [0,2,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,2,0],
+      [0,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0],
+      [0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0]
     ]
 
     #self.enemy_level = [
@@ -110,7 +110,7 @@ class Game():
           return
       self.screen.blit(self.background, (0,0))
       self.screen.blit(
-        self.draw_text("arrow keys to move, space to shoot, press enter to play"),
+        self.draw_text("use left click to move, space to shoot, press enter to play"),
                        (350, self.height / 2 - 30))
       keys = pygame.key.get_pressed()
       if keys[pygame.K_RETURN]:
@@ -265,7 +265,7 @@ class Game():
         enemy_bullet = create_enemy_bullet(enemy, self.sprite_groups["enemy_bullets"])
         if type(enemy) is DartingEnemy:
           enemy_bullet.speed = 5
-          enemy_bullet.delay = 100
+          enemy_bullet.delay = 300
           delta_x = player.rect.centerx - enemy.rect.x
           delta_y = player.rect.centery - enemy.rect.y
           angle = self.determine_angle(delta_x, delta_y)
