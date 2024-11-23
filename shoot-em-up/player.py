@@ -1,15 +1,11 @@
+import math
 import pygame
 import random
 
 from utility_functions import load_png, generate_sprite_rotations
+from animation import Animation, SpriteData
 
 import pdb
-
-def create_player(group, game):
-  player_img = pygame.image.load('data/ship.png')
-  return Player((game.width / 2) - (player_img.get_width() / 2),
-                 game.height - player_img.get_height(),
-                 group)
 
 def create_bullet(player, delay, bullet_group):
   bullet_img = pygame.image.load('data/bullet.png')
@@ -30,21 +26,22 @@ def create_double_bullet(player, delay, bullet_group):
                 bullet_group))
 
 class Player(pygame.sprite.Sprite):
-  def __init__(self, x, y, sprite_group) -> None:
+  def __init__(self, sprite_group, game) -> None:
     pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('ship.png')
+    self.sprite_file_name = "ship_concept_5.png"
+    self.image, self.rect = load_png(self.sprite_file_name)
     self.original_image = self.image
     self.mask = pygame.mask.from_surface(self.image)
-    self.rect.x = x
-    self.rect.y = y
-    self.x_direction = 0
-    self.y_direction = 0
+    # pygame.Rect.(x|y) use int, so we track these as floats
+    self.centerx: float = self.rect.centerx
+    self.centery: float = self.rect.centery
     self.speed = 3
     self.original_speed = self.speed
+    self.delta_x: float = 0
+    self.delta_y: float = 0
     # used for slowing the ship to a stop
-    self.accel = -5
+    self.accel = -.02
     self.accelerating = False
-    self.moved_recently = False
     # used as part of bullet delay calculation
     self.next_bullet_time = 0
     self.bullet_delay = 200
@@ -54,61 +51,97 @@ class Player(pygame.sprite.Sprite):
     self.hit_animation_delay = 500
     self.hit_time_expiry = 0
     self.hp = 5
-    self.left_animation = {
-      "sprites": [],
-      "count": 0,
-      "direction": 1,
-      "delay": 50,
-      "next_frame_time": 0,
-      "enabled": False,
-      "key_down": False
-      }
-    self.right_animation = {
-      "sprites": [],
-      "count": 0,
-      "direction": 1,
-      "delay": 50,
-      "next_frame_time": 0,
-      "enabled": False,
-      "key_down": False
-      }
+    # create player movement animations with delay of 50ms
+    self.left_animation: Animation = Animation(delay=50, direction=1)
+    self.right_animation: Animation = Animation(delay=50, direction=1)
     self.create_sprite_rotations_left()
     self.create_sprite_rotations_right()
+    self.moving = False
+
+    self.init_player_position(game)
+
+  def init_player_position(self, game):
+    self.rect.x = game.width / 2 - self.image.get_width() / 2
+    self.rect.y = game.height - self.image.get_height()
+    self.centerx = self.rect.centerx
+    self.centery = self.rect.centery
+
+  def calculate_stop_distance(self):
+    time_to_stop = (0 - self.original_speed) / self.accel
+    velocity_avg = self.speed / 2
+    distance = (velocity_avg * time_to_stop) 
+    return distance
 
   def move(self, game):
-    prev_x = self.rect.x
-    prev_y = self.rect.y
-    self.rect.x += self.x_direction * self.speed
-    self.rect.y += self.y_direction * self.speed
+    # move to where mouse clicked
+    if abs(self.delta_x) > 0:
+      self.centerx += self.delta_x
+      self.rect.centerx = int(round(self.centerx, 0))
+      # a window of 2 pixels seems best here
+      if abs(self.rect.centerx - game.mouse_x) < 2:
+        self.delta_x = 0
+    if abs(self.delta_y) > 0:
+      self.centery += self.delta_y
+      self.rect.centery = int(round(self.centery, 0))
+      if abs(self.rect.centery - game.mouse_y) < 2:
+        self.delta_y = 0
+
+    if self.delta_x == 0 and self.delta_y == 0:
+      self.reset()
+
+    # check to see if player should start accelerating
+    if not self.accelerating:
+      a = self.centerx - game.mouse_x
+      b = self.centery - game.mouse_y
+      c = math.sqrt(a**2 + b**2)
+      stop_dist = self.calculate_stop_distance()
+      if c <= stop_dist and self.moving:
+        self.accelerating = True
+
+    # boundary collision checking
     if self.rect.x < 0:
-      self.rect.x = prev_x
+      self.rect.x = 0
+      self.centerx = self.rect.centerx
     if self.rect.x + self.image.get_width() > game.width:
-      self.rect.x = prev_x
+      self.rect.x = game.width - self.image.get_width()
+      self.centerx = self.rect.centerx
     if self.rect.y < game.height / 2:
-      self.rect.y = prev_y
+      self.rect.y = game.height / 2
+      self.centery = self.rect.centery
     if self.rect.y + self.image.get_height() > game.height:
-      self.rect.y = prev_y
-    if self.left_animation["enabled"] and self.right_animation["count"] == 0 and game.time_now > self.left_animation["next_frame_time"]:
-      self.left_animation["next_frame_time"] = game.time_now + self.left_animation["delay"]
+      self.rect.y = game.height - self.image.get_height()
+      self.centery = self.rect.centery
+
+    # animate moving left/right
+    if self.left_animation.enabled and self.right_animation.count == 0 and game.time_now > self.left_animation.next_frame_time:
+      self.left_animation.update_next_frame_time(game)
       self.next_sprite(self.left_animation)
-    if self.right_animation["enabled"] and self.left_animation["count"] == 0 and game.time_now > self.right_animation["next_frame_time"]:
-      self.right_animation["next_frame_time"] = game.time_now + self.right_animation["delay"]
+    if self.right_animation.enabled and self.left_animation.count == 0 and game.time_now > self.right_animation.next_frame_time:
+      self.right_animation.update_next_frame_time(game)
       self.next_sprite(self.right_animation)
 
   def reset(self):
     self.accelerating = False
-    self.x_direction = 0
-    self.y_direction = 0
+    self.delta_x = 0
+    self.delta_y = 0
     self.speed = self.original_speed
+    self.moving = False
 
-  def check_update_speed(self, game):
+  def calculate_speed(self, game):
     """ adjusts player speed if accelerating """
     if self.accelerating:
       if self.speed > 0:
         frame_time = game.time_now - game.prev_time
-        self.speed = self.speed + self.accel * frame_time/1000
+        self.speed = self.speed + self.accel
+        self.update_velocity_vector(self.delta_x, self.delta_y, game.angle)
       else:
         self.reset()
+
+  def update_velocity_vector(self, a, b, angle):
+    delta_y = -(self.speed * math.sin(math.radians(angle)))
+    delta_x = self.speed * math.cos(math.radians(angle))
+    self.delta_x = delta_x
+    self.delta_y = delta_y
 
   def draw_hp(self, game):
     for i in range(0, self.hp):
@@ -130,67 +163,76 @@ class Player(pygame.sprite.Sprite):
       self.image = self.original_image
 
   def create_sprite_rotations_left(self):
-    self.left_animation["sprites"] = \
-      generate_sprite_rotations(5.0, 0, 25, 'ship.png')
+    self.left_animation.sprites = \
+      generate_sprite_rotations(5.0, 0, 25, self.sprite_file_name)
 
   def create_sprite_rotations_right(self):
-    self.right_animation["sprites"] = \
-      generate_sprite_rotations(-5.0, 360, 335, 'ship.png')
+    self.right_animation.sprites = \
+      generate_sprite_rotations(-5.0, 360, 335, self.sprite_file_name)
   
   def next_sprite(self, animation):
     x = self.rect.centerx
     y = self.rect.centery
-    self.image = animation["sprites"][animation["count"]]["image"]
-    self.rect = animation["sprites"][animation["count"]]["rect"]
+    self.image = animation.sprites[animation.count].image
+    self.rect = animation.sprites[animation.count].rect
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.centerx = x
     self.rect.centery = y
-    animation["count"] += animation["direction"]
-    if animation["count"] == len(animation["sprites"]) - 1:
-      if not animation["key_down"]:
-        animation["direction"] = -1
+    animation.count += animation.direction
+    if animation.count == len(animation.sprites) - 1:
+      if not animation.key_down:
+        animation.direction = -1
       else:
-        animation["direction"] = 0
-    if animation["count"] == -1 and animation["direction"] == -1:
-      animation["enabled"] = False
-      animation["direction"] = 1
-      animation["count"] = 0
+        animation.direction = 0
+    if animation.count == -1 and animation.direction == -1:
+      animation.enabled = False
+      animation.direction = 1
+      animation.count = 0
       self.image = self.original_image
 
 class Bullet(pygame.sprite.Sprite):
   def __init__(self, x, y, delay, sprite_group) -> None:
     # adds Bullet sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('player_bullet_1.png')
+    self.image, self.rect = load_png('bullet.png')
     # create masks, for pixel perfect collision detection
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.centerx = x
     self.rect.y = y
     self.delay = delay
     self.speed = -8
-    self.bullet_animation_data = {
-      "images": ["player_bullet_1.png", "player_bullet_2.png", "player_bullet_3.png","player_bullet_4.png", "player_bullet_5.png"],
-      "delay": 70,
-      "next_animation_time": 0,
-      "count": 0
-    }
+    self.bullet_animation: Animation = Animation(delay=70, direction=1)
+    self.bullet_animation_files = [
+      "player_bullet_1.png",
+      "player_bullet_2.png",
+      "player_bullet_3.png",
+      "player_bullet_4.png",
+      "player_bullet_5.png"]
 
-  def move(self, direction, game):
+    self.load_sprite_animations()
+
+  def load_sprite_animations(self):
+    for file in self.bullet_animation_files:
+      image, rect = load_png(file)
+      sprite_info = SpriteData(image, rect)
+      self.bullet_animation.sprites.append(sprite_info)
+
+  def move(self, direction, game, player):
     self.rect.y += direction
-    if game.time_now > self.bullet_animation_data["next_animation_time"]:
-      self.bullet_animation_data["next_animation_time"] = self.bullet_animation_data["delay"] + game.time_now
-      self.image, rect = load_png(self.bullet_animation_data["images"][self.bullet_animation_data["count"]])
-      self.bullet_animation_data["count"] += 1
-      if self.bullet_animation_data["count"] == len(self.bullet_animation_data["images"]):
-        self.bullet_animation_data["count"] = 0
+    if player.speed_power_up_expiry > 0:
+      if game.time_now > self.bullet_animation.next_frame_time:
+        self.bullet_animation.update_next_frame_time(game)
+        self.bullet_animation.update_sprite()
+        self.image = self.bullet_animation.image
+        # XXX: update mask?
 
-  def draw(self, game):
-    self.move(self.speed, game)
+  def draw(self, game, player):
+    self.move(self.speed, game, player)
     collisions = pygame.sprite.spritecollide(
-                   self,
-                   game.sprite_groups["enemies"],
-                   False,
-                   collided=pygame.sprite.collide_mask)
+      self,
+      game.sprite_groups["enemies"],
+      False,
+      collided=pygame.sprite.collide_mask)
     for enemy in collisions:
       enemy.hit_time_expiry = game.time_now + enemy.hit_animation_delay
       enemy.hp -= 1
@@ -199,9 +241,9 @@ class Bullet(pygame.sprite.Sprite):
         # 1 in 10 chance to spawn power up
         if random.random() < 0.1:
           power_up = SpeedPowerUp(
-                       enemy.rect.x,
-                       enemy.rect.y,
-                       game.sprite_groups["power_ups"])
+            enemy.rect.x,
+            enemy.rect.y,
+            game.sprite_groups["power_ups"])
         game.sprite_groups["enemies"].remove(enemy)
       if not game.sprite_groups["enemies"]:
         game.win = True

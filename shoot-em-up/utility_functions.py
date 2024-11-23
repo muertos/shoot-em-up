@@ -1,6 +1,8 @@
 import pygame
 import os
 
+from animation import SpriteData
+
 def load_png(name: str) -> (pygame.Surface, pygame.Rect):
   """ load image and return image object """
   fullname = os.path.join('data', name)
@@ -24,9 +26,6 @@ def generate_sprite_rotations(angle_of_rotation: float, start_angle: float, end_
     angle += angle_of_rotation
     rotated_img = pygame.transform.rotate(image, angle)
     rotated_rect = rotated_img.get_rect(center=orig_rect.center)
-    rotated_sprite = {
-      "image": rotated_img,
-      "rect": rotated_rect
-      }
+    rotated_sprite = SpriteData(rotated_img, rotated_rect)
     rotated_sprites.append(rotated_sprite)
   return rotated_sprites

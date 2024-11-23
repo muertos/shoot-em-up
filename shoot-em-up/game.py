@@ -25,11 +25,11 @@ class Game():
     self.enemy_offset_y = None
     self.intro_enemies = True
     self.running = True
+    self.mouse_x = 0
+    self.mouse_y = 0
+    self.angle = 0
 
     self.enemy_level = [
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -56,7 +56,8 @@ class Game():
       "enemy_bullets": pygame.sprite.Group(),
       "player": pygame.sprite.Group(),
       "asteroids": pygame.sprite.Group(),
-      "power_ups": pygame.sprite.Group()
+      "power_ups": pygame.sprite.Group(),
+      "stars": pygame.sprite.Group()
     }
 
     self.screen.blit(self.background, (0,0))
@@ -110,7 +111,7 @@ class Game():
       self.screen.blit(self.background, (0,0))
       self.screen.blit(
         self.draw_text("arrow keys to move, space to shoot, press enter to play"),
-                       (150, self.height / 2 - 30))
+                       (350, self.height / 2 - 30))
       keys = pygame.key.get_pressed()
       if keys[pygame.K_RETURN]:
         break
@@ -129,51 +130,59 @@ class Game():
                        (200,0,0)),
                        (self.width / 2 - 100, self.height / 2 - 30))
 
+  def determine_angle(self, x, y):
+    try:
+      # quadrant 1
+      angle = math.degrees(math.atan(abs(y) / x))
+    except ZeroDivisionError:
+      if y > 0:
+        angle = 90
+      else:
+        angle = 270.0
+    # quadrant 2
+    if x < 0 and y < 0:
+      angle = 180 - abs(angle)
+    # quadrant 3
+    if x < 0 and y > 0:
+      angle = 180 + abs(angle)
+    # quadrant 4
+    if x > 0 and y > 0:
+      angle = 360 - abs(angle)
+    return angle
+
   def handle_input(self, player):
     for event in pygame.event.get():
       keys = pygame.key.get_pressed()
       if event.type == QUIT:
         return
-      if event.type == KEYDOWN:
-        # reset player acceleration and speed to original state
-        if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
+      
+      # mouse input
+      mouse_input = pygame.mouse.get_pressed()
+      if event.type == MOUSEBUTTONDOWN:
+        # left button
+        if mouse_input[0]:
           player.reset()
-        if keys[pygame.K_LEFT]:
-          player.left_animation["key_down"] = True
-        if keys[pygame.K_RIGHT]:
-          player.right_animation["key_down"] = True
-      if event.type == KEYUP and player.moved_recently:
-        player.accelerating = True
-        player.moved_recently = False
-        player.left_animation["key_down"] = False
-        player.right_animation["key_down"] = False
-
+          player.moving = True
+          self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
+          x = self.mouse_x - player.rect.centerx
+          y = self.mouse_y - player.rect.centery
+          self.angle = self.determine_angle(x, y)
+          player.update_velocity_vector(x, y, self.angle)
+          if player.delta_x < 0:
+            player.left_animation.enabled = True
+          elif player.delta_x > 0:
+            player.right_animation.enabled = True
+          
     # handle most keypresses outside of event loop
     keys = pygame.key.get_pressed()
     if not self.lose:
-      if keys[pygame.K_LEFT]:
-        player.x_direction = -1
-        player.y_direction = 0
-        player.left_animation["enabled"] = True
-        player.moved_recently = True
-      if keys[pygame.K_RIGHT]:
-        player.x_direction = 1
-        player.y_direction = 0
-        player.right_animation["enabled"] = True
-        player.moved_recently = True
-      if keys[pygame.K_UP]:
-        player.y_direction = -1
-        player.x_direction = 0
-        player.moved_recently = True
-      if keys[pygame.K_DOWN]:
-        player.y_direction = 1
-        player.x_direction = 0
-        player.moved_recently = True
       if not self.intro_enemies and keys[pygame.K_SPACE] and self.time_now > player.next_bullet_time:
-        #bullet = create_bullet(player, player.bullet_delay, game.sprite_groups["bullets"])
-        bullet1, bullet2 = create_double_bullet(player, player.double_bullet_delay, self.sprite_groups["bullets"])
+        if player.speed_power_up_expiry == 0:
+          bullet = create_bullet(player, player.bullet_delay, self.sprite_groups["bullets"])
+        else:
+          bullet, bullet2 = create_double_bullet(player, player.double_bullet_delay, self.sprite_groups["bullets"])
         # introduce delay between bullets
-        player.next_bullet_time = bullet1.delay + self.time_now
+        player.next_bullet_time = bullet.delay + self.time_now
     if keys[pygame.K_END] or keys[pygame.K_ESCAPE]:
       sys.exit(0)
       
@@ -216,26 +225,32 @@ class Game():
     for sprite in self.sprite_groups["enemies"]:
       sprite.blink_when_hit(self)
 
-  def spawn_asteroids(self, rotated_sprites):
+  def spawn_asteroids(self):
     if self.time_now > self.next_asteroid_time:
+      if random.random() > .5:
+        spin_direction = 1
+      else:
+        spin_direction = -1
+      animation_delay = random.randrange(10, 50)
       x = random.randrange(
-            0,
-            int(self.width - self.asteroid_img.get_width()))
-      asteroid = Asteroid(x,
-                          0 - self.asteroid_img.get_height(),
-                          self.sprite_groups["asteroids"],
-                          rotated_sprites)
+        0,
+        int(self.width - self.asteroid_img.get_width()))
+      asteroid = Asteroid(
+        x,
+        0 - self.asteroid_img.get_height(),
+        animation_delay,
+        spin_direction,
+        self.sprite_groups["asteroids"])
       self.next_asteroid_time = self.time_now + random.randrange(2000, 5000)
 
   def move_asteroids(self, player):
-    if self.animation_delay_counter % 2 == 0:
-      for asteroid in self.sprite_groups["asteroids"].sprites():
-        asteroid.draw(self, player)
+    for asteroid in self.sprite_groups["asteroids"].sprites():
+      asteroid.draw(self, player)
         
-  def animate_bullets(self):
+  def animate_bullets(self, player):
     """ animate player bullets and check for collisions against enemies """
     for bullet in self.sprite_groups["bullets"].sprites():
-      bullet.draw(self)
+      bullet.draw(self, player)
       
   def animate_enemies(self):
     """ animate enemies and check for collisions against themselves """
@@ -250,17 +265,12 @@ class Game():
         enemy_bullet = create_enemy_bullet(enemy, self.sprite_groups["enemy_bullets"])
         if type(enemy) is DartingEnemy:
           enemy_bullet.speed = 5
+          enemy_bullet.delay = 100
           delta_x = player.rect.centerx - enemy.rect.x
           delta_y = player.rect.centery - enemy.rect.y
-          try:
-            angle = math.atan(delta_y / abs(delta_x))
-          except ZeroDivisionError:
-            print(delta_y, "/", abs(delta_x))
-          enemy_bullet.delta_y = enemy_bullet.speed * math.sin(angle)
-          if delta_x > 0:
-            enemy_bullet.delta_x = enemy_bullet.speed * math.cos(angle)
-          else:
-            enemy_bullet.delta_x = -(enemy_bullet.speed * math.cos(angle))
+          angle = self.determine_angle(delta_x, delta_y)
+          enemy_bullet.delta_y = -(enemy_bullet.speed * math.sin(math.radians(angle)))
+          enemy_bullet.delta_x = enemy_bullet.speed * math.cos(math.radians(angle))
         enemy.next_bullet_time = self.time_now + enemy_bullet.delay
         self.sprite_groups["enemy_bullets"].add(enemy_bullet)
 

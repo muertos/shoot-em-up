@@ -4,7 +4,7 @@ import pygame
 
 from game import Game
 from stars import Stars
-from player import Player, create_player
+from player import Player
 from utility_functions import generate_sprite_rotations
 
 import pdb
@@ -15,30 +15,26 @@ BG_COLOR = 10, 10, 20
 GAME_TITLE = "Shoot 'em up"
 
 def main():
-  game = Game(GAME_TITLE,
-              SCREEN_WIDTH,
-              SCREEN_HEIGHT,
-              BG_COLOR)
+  game = Game(
+    GAME_TITLE,
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    BG_COLOR)
   stars = Stars(game)
-  player = create_player(game.sprite_groups["player"], game)
+  player = Player(game.sprite_groups["player"], game)
   player.draw_hp(game)
-  rotated_asteroid_sprites = generate_sprite_rotations(
-    1.0,
-    0,
-    360.0,
-    'asteroid.png')
-
+  
   while game.running:
     game.prev_time = game.time_now
     game.time_now = pygame.time.get_ticks()
     game.clock.tick(120)
     game.increment_animation_delay_counter()
     game.handle_input(player)
-    player.check_update_speed(game)
+    player.calculate_speed(game)
     player.move(game)
-    game.spawn_asteroids(rotated_asteroid_sprites)
+    game.spawn_asteroids()
     game.move_asteroids(player)
-    game.animate_bullets()
+    game.animate_bullets(player)
     if game.intro_enemies:
       game.animate_enemies_intro()
     else:
@@ -49,7 +45,7 @@ def main():
     game.check_player_hp(player)
     game.check_powerup_expiry(player)
     game.screen.fill(game.bg_color)
-    stars.draw()
+    #stars.draw()
     game.draw_sprites()
     game.enemy_blink_when_hit()
     player.draw_hp(game)
