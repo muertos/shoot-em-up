@@ -16,7 +16,8 @@ class Animation():
     # these seem specific to player ship animation
     self.direction: int = direction
     self.enabled: bool = False
-    self.key_down: bool = False
+    # track if the input button is held down
+    self.is_pressed: bool = False
 
   def update_next_frame_time(self, game):
     self.next_frame_time = game.time_now + self.delay
@@ -30,6 +31,14 @@ class Animation():
       self.count = 0
     elif self.count == -1:
       self.count = len(self.sprites) - 1
+    elif self.count == 0:
+      self.direction = 1
+
+  def hold_last_frame_or_reverse(self):
+    if self.is_pressed:
+      self.direction = 0
+    else:
+      self.direction = -1
 
 class SpriteData():
   def __init__(self, image, rect) -> None:

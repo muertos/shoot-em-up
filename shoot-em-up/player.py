@@ -10,7 +10,7 @@ import pdb
 def create_bullet(player, delay, bullet_group):
   bullet_img = pygame.image.load('data/bullet.png')
   return Bullet(player.rect.x + (player.image.get_width() / 2) - (bullet_img.get_width() / 2),
-                player.rect.y,
+                player.rect.y - bullet_img.get_height(),
                 delay,
                 bullet_group)
 
@@ -28,7 +28,7 @@ def create_double_bullet(player, delay, bullet_group):
 class Player(pygame.sprite.Sprite):
   def __init__(self, sprite_group, game) -> None:
     pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.sprite_file_name = "ship_concept_5.png"
+    self.sprite_file_name = "ship5.png"
     self.image, self.rect = load_png(self.sprite_file_name)
     self.original_image = self.image
     self.mask = pygame.mask.from_surface(self.image)
@@ -42,6 +42,27 @@ class Player(pygame.sprite.Sprite):
     # used for slowing the ship to a stop
     self.accel = -.02
     self.accelerating = False
+    # gun offsets
+    self.left_gun_x_offset = 3
+    self.right_gun_x_offset = 48
+    self.left_gun_offsets = [
+      (3,48),
+      (5,45),
+      (6,42),
+      (7,39),
+      (10,36),
+      (14,34)
+    ]
+    self.right_gun_offsets = [
+      (3,48),
+      (5,47),
+      (9,45),
+      (12,43),
+      (16,40),
+      (18,38)
+    ]
+    self.left_gun_enabled = True
+    self.right_gun_enabled = False
     # used as part of bullet delay calculation
     self.next_bullet_time = 0
     self.bullet_delay = 200
@@ -54,11 +75,39 @@ class Player(pygame.sprite.Sprite):
     # create player movement animations with delay of 50ms
     self.left_animation: Animation = Animation(delay=50, direction=1)
     self.right_animation: Animation = Animation(delay=50, direction=1)
-    self.create_sprite_rotations_left()
-    self.create_sprite_rotations_right()
+    self.right_animation_files = [
+      "ship5_right1.png",
+      "ship5_right2.png",
+      "ship5_right3.png",
+      "ship5_right4.png",
+      "ship5_right5.png",
+      "ship5_right6.png"
+    ]
+    self.left_animation_files = [
+      "ship5_left1.png",
+      "ship5_left2.png",
+      "ship5_left3.png",
+      "ship5_left4.png",
+      "ship5_left5.png",
+      "ship5_left6.png"
+    ]
     self.moving = False
 
     self.init_player_position(game)
+    self.load_sprite_animations_left()
+    self.load_sprite_animations_right()
+
+  def load_sprite_animations_left(self):
+    for file in self.left_animation_files:
+      image, rect = load_png(file)
+      sprite_info = SpriteData(image, rect)
+      self.left_animation.sprites.append(sprite_info)
+
+  def load_sprite_animations_right(self):
+    for file in self.right_animation_files:
+      image, rect = load_png(file)
+      sprite_info = SpriteData(image, rect)
+      self.right_animation.sprites.append(sprite_info)
 
   def init_player_position(self, game):
     self.rect.x = game.width / 2 - self.image.get_width() / 2
@@ -73,6 +122,29 @@ class Player(pygame.sprite.Sprite):
     return distance
 
   def move(self, game):
+    # animate moving left/right
+    if self.left_animation.enabled and game.time_now > self.left_animation.next_frame_time:
+      self.left_animation.update_next_frame_time(game)
+      # hold player position at last animation frame if input being received, otherwise cycle back through animation stack
+      if self.left_animation.count == len(self.left_animation.sprites) - 1:
+        self.left_animation.hold_last_frame_or_reverse()
+      self.left_animation.update_sprite()
+      self.image = self.left_animation.image
+      if self.left_animation.count == 0:
+        self.left_animation.enabled = False
+        self.image = self.original_image
+      self.left_gun_x_offset, self.right_gun_x_offset = self.left_gun_offsets[self.left_animation.count]
+    if self.right_animation.enabled and game.time_now > self.right_animation.next_frame_time:
+      self.right_animation.update_next_frame_time(game)
+      if self.right_animation.count == len(self.right_animation.sprites) - 1:
+        self.right_animation.hold_last_frame_or_reverse()
+      self.right_animation.update_sprite()
+      self.image = self.right_animation.image
+      if self.right_animation.count == 0:
+        self.right_animation.enabled = False
+        self.image = self.original_image
+      self.left_gun_x_offset, self.right_gun_x_offset = self.right_gun_offsets[self.right_animation.count]
+
     # move to where mouse clicked
     if abs(self.delta_x) > 0:
       self.centerx += self.delta_x
@@ -112,13 +184,7 @@ class Player(pygame.sprite.Sprite):
       self.rect.y = game.height - self.image.get_height()
       self.centery = self.rect.centery
 
-    # animate moving left/right
-    if self.left_animation.enabled and self.right_animation.count == 0 and game.time_now > self.left_animation.next_frame_time:
-      self.left_animation.update_next_frame_time(game)
-      self.next_sprite(self.left_animation)
-    if self.right_animation.enabled and self.left_animation.count == 0 and game.time_now > self.right_animation.next_frame_time:
-      self.right_animation.update_next_frame_time(game)
-      self.next_sprite(self.right_animation)
+    
 
   def reset(self):
     self.accelerating = False
@@ -170,37 +236,17 @@ class Player(pygame.sprite.Sprite):
     self.right_animation.sprites = \
       generate_sprite_rotations(-5.0, 360, 335, self.sprite_file_name)
   
-  def next_sprite(self, animation):
-    x = self.rect.centerx
-    y = self.rect.centery
-    self.image = animation.sprites[animation.count].image
-    self.rect = animation.sprites[animation.count].rect
-    self.mask = pygame.mask.from_surface(self.image)
-    self.rect.centerx = x
-    self.rect.centery = y
-    animation.count += animation.direction
-    if animation.count == len(animation.sprites) - 1:
-      if not animation.key_down:
-        animation.direction = -1
-      else:
-        animation.direction = 0
-    if animation.count == -1 and animation.direction == -1:
-      animation.enabled = False
-      animation.direction = 1
-      animation.count = 0
-      self.image = self.original_image
-
 class Bullet(pygame.sprite.Sprite):
   def __init__(self, x, y, delay, sprite_group) -> None:
     # adds Bullet sprite to sprite_group
     pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.image, self.rect = load_png('bullet.png')
+    self.image, self.rect = load_png('player_bullet_concept2.png')
     # create masks, for pixel perfect collision detection
     self.mask = pygame.mask.from_surface(self.image)
     self.rect.centerx = x
     self.rect.y = y
     self.delay = delay
-    self.speed = -8
+    self.speed = -4
     self.bullet_animation: Animation = Animation(delay=70, direction=1)
     self.bullet_animation_files = [
       "player_bullet_1.png",

@@ -39,16 +39,16 @@ class Game():
       [0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0]
     ]
 
-    #self.enemy_level = [
-    #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    #  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    #  [0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0]]
+    self.enemy_level = [
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0]]
 
     self.sprite_groups = {
       "bullets": pygame.sprite.Group(),
@@ -170,8 +170,13 @@ class Game():
           player.update_velocity_vector(x, y, self.angle)
           if player.delta_x < 0:
             player.left_animation.enabled = True
+            player.left_animation.is_pressed = True
           elif player.delta_x > 0:
             player.right_animation.enabled = True
+            player.right_animation.is_pressed = True
+      if event.type == MOUSEBUTTONUP:
+        player.right_animation.is_pressed = False
+        player.left_animation.is_pressed = False
           
     # handle most keypresses outside of event loop
     keys = pygame.key.get_pressed()
@@ -179,6 +184,14 @@ class Game():
       if not self.intro_enemies and keys[pygame.K_SPACE] and self.time_now > player.next_bullet_time:
         if player.speed_power_up_expiry == 0:
           bullet = create_bullet(player, player.bullet_delay, self.sprite_groups["bullets"])
+          if player.left_gun_enabled:
+            bullet.rect.x = player.rect.x + player.left_gun_x_offset
+            player.left_gun_enabled = False
+            player.right_gun_enabled = True
+          elif player.right_gun_enabled:
+            bullet.rect.x = player.rect.x + player.right_gun_x_offset
+            player.right_gun_enabled = False
+            player.left_gun_enabled = True
         else:
           bullet, bullet2 = create_double_bullet(player, player.double_bullet_delay, self.sprite_groups["bullets"])
         # introduce delay between bullets
