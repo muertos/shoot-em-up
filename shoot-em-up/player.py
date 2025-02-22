@@ -36,8 +36,6 @@ class Player(pygame.sprite.Sprite):
     # pygame.Rect.(x|y) use int, so we track these as floats
     self.x: float = self.rect.x
     self.y: float = self.rect.y
-    self.velocity = 0 # px/s
-    self.angle = 0
     # x/y vectors
     self.x_velocity = 0
     self.y_velocity = 0
@@ -48,6 +46,8 @@ class Player(pygame.sprite.Sprite):
     self.y_dir = 0
     # used for slowing the ship to a stop
     self.accel = 0 # px/s^2
+    self.accel_rate = 2000
+    self.deccel_rate = -1000
     self.left_timer = 0
 
     self.left_gun_enabled = True
@@ -92,56 +92,51 @@ class Player(pygame.sprite.Sprite):
     self.x = self.rect.x
     self.y = self.rect.y
 
-  def update_x_vector(self, direction):
-    #if self.x_velocity == 0 and self.y_velocity == 0:
-    #  if direction == -1:
-    #    self.angle = math.radians(180)
-    #  else:
-    #    self.angle = math.radians(0)
-    #  return
-    self.x_velocity = direction * math.sqrt(self.velocity**2 - self.y_velocity**2)
-    self.angle = math.atan2(self.y_velocity, self.x_velocity)
-
-  def update_y_vector(self, direction):
-    #if self.y_velocity == 0 and self.x_velocity == 0:
-    #  if direction == -1:
-    #    self.angle = math.radians(90)
-    #  else:
-    #    self.angle = math.radians(-90)
-    #  return
-    self.y_velocity = direction * math.sqrt(self.velocity**2 - self.x_velocity**2)
-    self.angle = math.atan2(self.y_velocity, self.x_velocity)
-    print(self.y_velocity, self.angle)
-
   def move(self, game):
     # animate moving left/right
     prev_x = self.rect.x
     prev_y = self.rect.y
 
-    if self.accel != 0:
-      self.velocity = self.velocity + self.accel * game.frame_time
-      if self.velocity < 0:
-        self.accel = 0
-        self.velocity = 0
-        self.x_velocity = 0
-        self.y_velocity = 0
-      self.x_velocity = self.velocity * math.cos(self.angle)
-      self.y_velocity = self.velocity * math.sin(self.angle)
+    if self.accel > 0:
+      if self.x_dir != 0:
+        self.x_velocity = self.x_velocity + self.x_dir * self.accel * game.frame_time
+      if self.y_dir != 0:
+        self.y_velocity = self.y_velocity + self.y_dir * self.accel * game.frame_time
+    elif self.accel < 0:
+      if self.x_velocity < 0:
+        self.x_velocity = self.x_velocity + -self.accel * game.frame_time
+        if self.x_velocity > 0:
+          self.x_velocity = 0
+      elif self.x_velocity > 0:
+        self.x_velocity = self.x_velocity + self.accel * game.frame_time
+        if self.x_velocity < 0:
+          self.x_velocity = 0
+      if self.y_velocity < 0:
+        self.y_velocity = self.y_velocity + -self.accel * game.frame_time
+        if self.y_velocity > 0:
+          self.y_velocity = 0
+      elif self.y_velocity > 0:
+        self.y_velocity = self.y_velocity + self.accel * game.frame_time
+        if self.y_velocity < 0:
+          self.y_velocity = 0
+    if self.x_velocity != 0:
       self.dx = self.x_velocity * game.frame_time + .5 * self.accel * game.frame_time**2
-      self.dy = self.y_velocity * game.frame_time + .5 * self.accel * game.frame_time**2
       self.x += self.dx
-      self.y += self.dy
       self.rect.x = self.x
+    if self.y_velocity != 0:
+      self.dy = self.y_velocity * game.frame_time + .5 * self.accel * game.frame_time**2
+      self.y += self.dy
       self.rect.y = self.y
-      self.angle = math.atan2(self.y_velocity, self.x_velocity)
-      print("x: ", self.rect.x, "y: ", self.rect.y, "dx: ", self.dx, "dy: ", self.dy, "xv: ", self.x_velocity, "yv: ", self.y_velocity, "angle: ", math.degrees(self.angle), "vel: ", self.velocity)
+    #print("x: ", self.rect.x, "y: ", self.rect.y, "dx: ", self.dx, "dy: ", self.dy, "xv: ", self.x_velocity, "yv: ", self.y_velocity)
 
     if self.rect.x < 0 or (self.rect.x + self.image.get_width() > game.width):
       self.rect.x = prev_x
       self.x = prev_x
+      self.x_velocity = 0
     if self.rect.y < game.height / 2 or (self.rect.y + self.image.get_height() > game.height):
       self.rect.y = prev_y
       self.y = prev_y
+      self.y_velocity = 0
     if self.left_animation.enabled and self.right_animation.count == 0 and game.time_now > self.left_animation.next_frame_time:
       self.left_animation.next_frame_time = game.time_now + self.left_animation.delay
       self.left_animation.update_sprite()

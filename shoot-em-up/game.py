@@ -156,52 +156,35 @@ class Game():
       keys = pygame.key.get_pressed()
       if event.type == QUIT:
         return
-      #if event.type == KEYDOWN:
-      #  if keys[pygame.K_LEFT]:
-      #    print("left")
-      #    player.accel = 300
-      #    player.update_x_vector(-1)
-      #  if keys[pygame.K_RIGHT]:
-      #    print("right")
-      #    player.accel = 300
-      #    player.update_x_vector(1)
-      #  if keys[pygame.K_UP]:
-      #    print("up")
-      #    player.accel = 300
-      #    player.update_y_vector(-1)
-      #  if keys[pygame.K_DOWN]:
-      #    print("down")
-      #    player.accel = 300
-      #    player.update_y_vector(1)
       if event.type == KEYUP:
         if event.key == pygame.K_LEFT:
-          player.accel = -300
+          player.x_dir = 0
+          player.accel = player.deccel_rate
         if event.key == pygame.K_RIGHT:
-          player.accel = -300
+          player.x_dir = 0
+          player.accel = player.deccel_rate
         if event.key == pygame.K_UP:
-          player.accel = -300
+          player.y_dir = 0
+          player.accel = player.deccel_rate
         if event.key == pygame.K_DOWN:
-          player.accel = -300
+          player.y_dir = 0
+          player.accel = player.deccel_rate
 
 
     # handle most keypresses outside of event loop
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT]:
-      player.accel = 300
-      if player.velocity == 0:
-        player.angle = math.radians(180)
+      player.accel = player.accel_rate
+      player.x_dir = -1
     if keys[pygame.K_RIGHT]:
-      player.accel = 300
-      if player.velocity == 0:
-        player.angle = math.radians(0)
+      player.accel = player.accel_rate
+      player.x_dir = 1
     if keys[pygame.K_UP]:
-      player.accel = 300
-      if player.velocity == 0:
-        player.angle = math.radians(270)
+      player.accel = player.accel_rate
+      player.y_dir = -1
     if keys[pygame.K_DOWN]:
-      player.accel = 300
-      if player.velocity == 0:
-        player.angle = math.radians(90)
+      player.accel = player.accel_rate
+      player.y_dir = 1
     if not self.lose:
       if not self.intro_enemies and keys[pygame.K_SPACE] and self.time_now > player.next_bullet_time:
         #bullet = create_bullet(player, player.bullet_delay, game.sprite_groups["bullets"])
