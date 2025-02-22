@@ -46,7 +46,7 @@ class Player(pygame.sprite.Sprite):
     self.y_dir = 0
     # used for slowing the ship to a stop
     self.accel = 0 # px/s^2
-    self.accel_rate = 2000
+    self.accel_rate = 3000
     self.deccel_rate = -1000
     self.left_timer = 0
 
@@ -103,31 +103,24 @@ class Player(pygame.sprite.Sprite):
       if self.y_dir != 0:
         self.y_velocity = self.y_velocity + self.y_dir * self.accel * game.frame_time
     elif self.accel < 0:
-      if self.x_velocity < 0:
-        self.x_velocity = self.x_velocity + -self.accel * game.frame_time
-        if self.x_velocity > 0:
-          self.x_velocity = 0
-      elif self.x_velocity > 0:
-        self.x_velocity = self.x_velocity + self.accel * game.frame_time
-        if self.x_velocity < 0:
-          self.x_velocity = 0
-      if self.y_velocity < 0:
-        self.y_velocity = self.y_velocity + -self.accel * game.frame_time
-        if self.y_velocity > 0:
-          self.y_velocity = 0
-      elif self.y_velocity > 0:
-        self.y_velocity = self.y_velocity + self.accel * game.frame_time
-        if self.y_velocity < 0:
-          self.y_velocity = 0
-    if self.x_velocity != 0:
-      self.dx = self.x_velocity * game.frame_time + .5 * self.accel * game.frame_time**2
-      self.x += self.dx
-      self.rect.x = self.x
-    if self.y_velocity != 0:
-      self.dy = self.y_velocity * game.frame_time + .5 * self.accel * game.frame_time**2
-      self.y += self.dy
-      self.rect.y = self.y
-    #print("x: ", self.rect.x, "y: ", self.rect.y, "dx: ", self.dx, "dy: ", self.dy, "xv: ", self.x_velocity, "yv: ", self.y_velocity)
+      decel_force = -self.accel * game.frame_time
+      if self.x_velocity != 0:
+          previous_x_velocity = self.x_velocity
+          self.x_velocity -= math.copysign(decel_force, self.x_velocity)
+          if math.copysign(1, previous_x_velocity) != math.copysign(1, self.x_velocity) and self.x_velocity != 0:
+              self.x_velocity = 0
+      if self.y_velocity != 0:
+          previous_y_velocity = self.y_velocity
+          self.y_velocity -= math.copysign(decel_force, self.y_velocity)
+          if math.copysign(1, previous_y_velocity) != math.copysign(1, self.y_velocity) and self.y_velocity != 0:
+              self.y_velocity = 0
+
+    self.dx = self.x_velocity * game.frame_time + .5 * self.accel * game.frame_time**2
+    self.x += self.dx
+    self.rect.x = self.x
+    self.dy = self.y_velocity * game.frame_time + .5 * self.accel * game.frame_time**2
+    self.y += self.dy
+    self.rect.y = self.y
 
     if self.rect.x < 0 or (self.rect.x + self.image.get_width() > game.width):
       self.rect.x = prev_x

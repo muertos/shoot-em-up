@@ -22,12 +22,13 @@ class Enemy(pygame.sprite.Sprite):
     self.move_count = 0
     self.move_delta = 1
     self.shooting = True
-    self.next_bullet_time = 0
     self.hit_animation_delay = 500
     self.hit_time_expiry = 0
     self.hp = 3
     self.collided = False
     self.moves = ["up", "down", "left", "right"]
+    self.bullet = EnemyBullet(0, 0, "")
+    self.next_bullet_time = self.bullet.delay + random.randrange(1000,5000)
 
   def move(self):
     self.rect.x += self.x_dir
