@@ -25,12 +25,9 @@ def main():
   player.draw_hp(game)
   
   while game.running:
-    game.prev_time = game.time_now
-    game.time_now = pygame.time.get_ticks()
     game.clock.tick(120)
     game.increment_animation_delay_counter()
     game.handle_input(player)
-    player.calculate_speed(game)
     player.move(game)
     game.spawn_asteroids()
     game.move_asteroids(player)
@@ -53,6 +50,9 @@ def main():
     #player.blink_when_hit(game)
     game.check_state()
     pygame.display.flip()
+    game.prev_time_now = game.time_now
+    game.time_now = pygame.time.get_ticks()
+    game.frame_time = (game.time_now - game.prev_time_now) / 1000
 
 if __name__ == "__main__":
   main()

@@ -20,6 +20,7 @@ class Game():
     self.init_time = pygame.time.get_ticks()
     self.next_asteroid_time = 0
     self.asteroid_img = pygame.image.load('data/asteroid.png')
+    self.frame_time = 0
     self.prev_time = None
     self.time_now = pygame.time.get_ticks()
     self.enemy_offset_y = None
@@ -155,50 +156,61 @@ class Game():
       keys = pygame.key.get_pressed()
       if event.type == QUIT:
         return
-      
-      # mouse input
-      mouse_input = pygame.mouse.get_pressed()
-      if event.type == MOUSEBUTTONDOWN:
-        # left button
-        if mouse_input[0]:
-          player.reset()
-          player.moving = True
-          self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
-          x = self.mouse_x - player.rect.centerx
-          y = self.mouse_y - player.rect.centery
-          self.angle = self.determine_angle(x, y)
-          player.update_velocity_vector(x, y, self.angle)
-          if player.delta_x < 0:
-            player.left_animation.enabled = True
-            player.left_animation.is_pressed = True
-          elif player.delta_x > 0:
-            player.right_animation.enabled = True
-            player.right_animation.is_pressed = True
-      if event.type == MOUSEBUTTONUP:
-        player.right_animation.is_pressed = False
-        player.left_animation.is_pressed = False
-          
+      #if event.type == KEYDOWN:
+      #  if keys[pygame.K_LEFT]:
+      #    print("left")
+      #    player.accel = 300
+      #    player.update_x_vector(-1)
+      #  if keys[pygame.K_RIGHT]:
+      #    print("right")
+      #    player.accel = 300
+      #    player.update_x_vector(1)
+      #  if keys[pygame.K_UP]:
+      #    print("up")
+      #    player.accel = 300
+      #    player.update_y_vector(-1)
+      #  if keys[pygame.K_DOWN]:
+      #    print("down")
+      #    player.accel = 300
+      #    player.update_y_vector(1)
+      if event.type == KEYUP:
+        if event.key == pygame.K_LEFT:
+          player.accel = -300
+        if event.key == pygame.K_RIGHT:
+          player.accel = -300
+        if event.key == pygame.K_UP:
+          player.accel = -300
+        if event.key == pygame.K_DOWN:
+          player.accel = -300
+
+
     # handle most keypresses outside of event loop
     keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT]:
+      player.accel = 300
+      if player.velocity == 0:
+        player.angle = math.radians(180)
+    if keys[pygame.K_RIGHT]:
+      player.accel = 300
+      if player.velocity == 0:
+        player.angle = math.radians(0)
+    if keys[pygame.K_UP]:
+      player.accel = 300
+      if player.velocity == 0:
+        player.angle = math.radians(270)
+    if keys[pygame.K_DOWN]:
+      player.accel = 300
+      if player.velocity == 0:
+        player.angle = math.radians(90)
     if not self.lose:
       if not self.intro_enemies and keys[pygame.K_SPACE] and self.time_now > player.next_bullet_time:
-        if player.speed_power_up_expiry == 0:
-          bullet = create_bullet(player, player.bullet_delay, self.sprite_groups["bullets"])
-          if player.left_gun_enabled:
-            bullet.rect.x = player.rect.x + player.left_gun_x_offset
-            player.left_gun_enabled = False
-            player.right_gun_enabled = True
-          elif player.right_gun_enabled:
-            bullet.rect.x = player.rect.x + player.right_gun_x_offset
-            player.right_gun_enabled = False
-            player.left_gun_enabled = True
-        else:
-          bullet, bullet2 = create_double_bullet(player, player.double_bullet_delay, self.sprite_groups["bullets"])
+        #bullet = create_bullet(player, player.bullet_delay, game.sprite_groups["bullets"])
+        bullet1, bullet2 = create_double_bullet(player, player.double_bullet_delay, self.sprite_groups["bullets"])
         # introduce delay between bullets
-        player.next_bullet_time = bullet.delay + self.time_now
+        player.next_bullet_time = bullet1.delay + self.time_now
     if keys[pygame.K_END] or keys[pygame.K_ESCAPE]:
       sys.exit(0)
-      
+     
   def increment_animation_delay_counter(self):
     self.animation_delay_counter += 1
     if self.animation_delay_counter == 500:

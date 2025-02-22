@@ -28,74 +28,51 @@ def create_double_bullet(player, delay, bullet_group):
 class Player(pygame.sprite.Sprite):
   def __init__(self, sprite_group, game) -> None:
     pygame.sprite.Sprite.__init__(self, sprite_group)
-    self.sprite_file_name = "ship5.png"
+    self.sprite_file_name = "ship_simple_red_zoomed.png"
     self.image, self.rect = load_png(self.sprite_file_name)
     self.original_image = self.image
     self.mask = pygame.mask.from_surface(self.image)
+
     # pygame.Rect.(x|y) use int, so we track these as floats
-    self.centerx: float = self.rect.centerx
-    self.centery: float = self.rect.centery
-    self.speed = 3
-    self.original_speed = self.speed
-    self.delta_x: float = 0
-    self.delta_y: float = 0
+    self.x: float = self.rect.x
+    self.y: float = self.rect.y
+    self.velocity = 0 # px/s
+    self.angle = 0
+    # x/y vectors
+    self.x_velocity = 0
+    self.y_velocity = 0
+    self.dx: float = 0
+    self.dy: float = 0
+    # x/y travel direction
+    self.x_dir = 0
+    self.y_dir = 0
     # used for slowing the ship to a stop
-    self.accel = -.02
-    self.accelerating = False
-    # gun offsets
-    self.left_gun_x_offset = 3
-    self.right_gun_x_offset = 48
-    self.left_gun_offsets = [
-      (3,48),
-      (5,45),
-      (6,42),
-      (7,39),
-      (10,36),
-      (14,34)
-    ]
-    self.right_gun_offsets = [
-      (3,48),
-      (5,47),
-      (9,45),
-      (12,43),
-      (16,40),
-      (18,38)
-    ]
+    self.accel = 0 # px/s^2
+    self.left_timer = 0
+
     self.left_gun_enabled = True
     self.right_gun_enabled = False
     # used as part of bullet delay calculation
     self.next_bullet_time = 0
     self.bullet_delay = 200
     self.double_bullet_delay = 50
+
     self.speed_power_up_duration = 5000
     self.speed_power_up_expiry = 0
     self.hit_animation_delay = 500
     self.hit_time_expiry = 0
+
     self.hp = 5
+
     # create player movement animations with delay of 50ms
     self.left_animation: Animation = Animation(delay=50, direction=1)
     self.right_animation: Animation = Animation(delay=50, direction=1)
-    self.right_animation_files = [
-      "ship5_right1.png",
-      "ship5_right2.png",
-      "ship5_right3.png",
-      "ship5_right4.png",
-      "ship5_right5.png",
-      "ship5_right6.png"
-    ]
-    self.left_animation_files = [
-      "ship5_left1.png",
-      "ship5_left2.png",
-      "ship5_left3.png",
-      "ship5_left4.png",
-      "ship5_left5.png",
-      "ship5_left6.png"
-    ]
     self.moving = False
+    self.moved_recently = False
 
     self.init_player_position(game)
-    self.load_sprite_animations_left()
-    self.load_sprite_animations_right()
+    self.create_sprite_rotations_left()
+    self.create_sprite_rotations_right()
 
   def load_sprite_animations_left(self):
     for file in self.left_animation_files:
@@ -112,102 +89,65 @@ class Player(pygame.sprite.Sprite):
   def init_player_position(self, game):
     self.rect.x = game.width / 2 - self.image.get_width() / 2
     self.rect.y = game.height - self.image.get_height()
-    self.centerx = self.rect.centerx
-    self.centery = self.rect.centery
+    self.x = self.rect.x
+    self.y = self.rect.y
 
-  def calculate_stop_distance(self):
-    time_to_stop = (0 - self.original_speed) / self.accel
-    velocity_avg = self.speed / 2
-    distance = (velocity_avg * time_to_stop) 
-    return distance
+  def update_x_vector(self, direction):
+    #if self.x_velocity == 0 and self.y_velocity == 0:
+    #  if direction == -1:
+    #    self.angle = math.radians(180)
+    #  else:
+    #    self.angle = math.radians(0)
+    #  return
+    self.x_velocity = direction * math.sqrt(self.velocity**2 - self.y_velocity**2)
+    self.angle = math.atan2(self.y_velocity, self.x_velocity)
+
+  def update_y_vector(self, direction):
+    #if self.y_velocity == 0 and self.x_velocity == 0:
+    #  if direction == -1:
+    #    self.angle = math.radians(90)
+    #  else:
+    #    self.angle = math.radians(-90)
+    #  return
+    self.y_velocity = direction * math.sqrt(self.velocity**2 - self.x_velocity**2)
+    self.angle = math.atan2(self.y_velocity, self.x_velocity)
+    print(self.y_velocity, self.angle)
 
   def move(self, game):
     # animate moving left/right
-    if self.left_animation.enabled and game.time_now > self.left_animation.next_frame_time:
-      self.left_animation.update_next_frame_time(game)
-      # hold player position at last animation frame if input being received, otherwise cycle back through animation stack
-      if self.left_animation.count == len(self.left_animation.sprites) - 1:
-        self.left_animation.hold_last_frame_or_reverse()
+    prev_x = self.rect.x
+    prev_y = self.rect.y
+
+    if self.accel != 0:
+      self.velocity = self.velocity + self.accel * game.frame_time
+      if self.velocity < 0:
+        self.accel = 0
+        self.velocity = 0
+        self.x_velocity = 0
+        self.y_velocity = 0
+      self.x_velocity = self.velocity * math.cos(self.angle)
+      self.y_velocity = self.velocity * math.sin(self.angle)
+      self.dx = self.x_velocity * game.frame_time + .5 * self.accel * game.frame_time**2
+      self.dy = self.y_velocity * game.frame_time + .5 * self.accel * game.frame_time**2
+      self.x += self.dx
+      self.y += self.dy
+      self.rect.x = self.x
+      self.rect.y = self.y
+      self.angle = math.atan2(self.y_velocity, self.x_velocity)
+      print("x: ", self.rect.x, "y: ", self.rect.y, "dx: ", self.dx, "dy: ", self.dy, "xv: ", self.x_velocity, "yv: ", self.y_velocity, "angle: ", math.degrees(self.angle), "vel: ", self.velocity)
+
+    if self.rect.x < 0 or (self.rect.x + self.image.get_width() > game.width):
+      self.rect.x = prev_x
+      self.x = prev_x
+    if self.rect.y < game.height / 2 or (self.rect.y + self.image.get_height() > game.height):
+      self.rect.y = prev_y
+      self.y = prev_y
+    if self.left_animation.enabled and self.right_animation.count == 0 and game.time_now > self.left_animation.next_frame_time:
+      self.left_animation.next_frame_time = game.time_now + self.left_animation.delay
       self.left_animation.update_sprite()
-      self.image = self.left_animation.image
-      if self.left_animation.count == 0:
-        self.left_animation.enabled = False
-        self.image = self.original_image
-      self.left_gun_x_offset, self.right_gun_x_offset = self.left_gun_offsets[self.left_animation.count]
-    if self.right_animation.enabled and game.time_now > self.right_animation.next_frame_time:
-      self.right_animation.update_next_frame_time(game)
-      if self.right_animation.count == len(self.right_animation.sprites) - 1:
-        self.right_animation.hold_last_frame_or_reverse()
+    if self.right_animation.enabled and self.left_animation.count == 0 and game.time_now > self.right_animation.next_frame_time:
+      self.right_animation.next_frame_time = game.time_now + self.right_animation.delay
       self.right_animation.update_sprite()
-      self.image = self.right_animation.image
-      if self.right_animation.count == 0:
-        self.right_animation.enabled = False
-        self.image = self.original_image
-      self.left_gun_x_offset, self.right_gun_x_offset = self.right_gun_offsets[self.right_animation.count]
-
-    # move to where mouse clicked
-    if abs(self.delta_x) > 0:
-      self.centerx += self.delta_x
-      self.rect.centerx = int(round(self.centerx, 0))
-      # a window of 2 pixels seems best here
-      if abs(self.rect.centerx - game.mouse_x) < 2:
-        self.delta_x = 0
-    if abs(self.delta_y) > 0:
-      self.centery += self.delta_y
-      self.rect.centery = int(round(self.centery, 0))
-      if abs(self.rect.centery - game.mouse_y) < 2:
-        self.delta_y = 0
-
-    if self.delta_x == 0 and self.delta_y == 0:
-      self.reset()
-
-    # check to see if player should start accelerating
-    if not self.accelerating:
-      a = self.centerx - game.mouse_x
-      b = self.centery - game.mouse_y
-      c = math.sqrt(a**2 + b**2)
-      stop_dist = self.calculate_stop_distance()
-      if c <= stop_dist and self.moving:
-        self.accelerating = True
-
-    # boundary collision checking
-    if self.rect.x < 0:
-      self.rect.x = 0
-      self.centerx = self.rect.centerx
-    if self.rect.x + self.image.get_width() > game.width:
-      self.rect.x = game.width - self.image.get_width()
-      self.centerx = self.rect.centerx
-    if self.rect.y < game.height / 2:
-      self.rect.y = game.height / 2
-      self.centery = self.rect.centery
-    if self.rect.y + self.image.get_height() > game.height:
-      self.rect.y = game.height - self.image.get_height()
-      self.centery = self.rect.centery
-
-    
-
-  def reset(self):
-    self.accelerating = False
-    self.delta_x = 0
-    self.delta_y = 0
-    self.speed = self.original_speed
-    self.moving = False
-
-  def calculate_speed(self, game):
-    """ adjusts player speed if accelerating """
-    if self.accelerating:
-      if self.speed > 0:
-        frame_time = game.time_now - game.prev_time
-        self.speed = self.speed + self.accel
-        self.update_velocity_vector(self.delta_x, self.delta_y, game.angle)
-      else:
-        self.reset()
-
-  def update_velocity_vector(self, a, b, angle):
-    delta_y = -(self.speed * math.sin(math.radians(angle)))
-    delta_x = self.speed * math.cos(math.radians(angle))
-    self.delta_x = delta_x
-    self.delta_y = delta_y
 
   def draw_hp(self, game):
     for i in range(0, self.hp):
